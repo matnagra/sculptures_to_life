@@ -80,6 +80,13 @@ const loadMindARScript = async (): Promise<void> => {
   });
 };
 
+const cleanupContainer = (container: HTMLElement | null) => {
+  if (!container) return;
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+};
+
 export default function WebARScene() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<ARStatus>("loading");
@@ -91,12 +98,15 @@ export default function WebARScene() {
   useEffect(() => {
     if (!hasStarted) return;
 
+    const container = containerRef.current;
+    if (!container) return;
+
     let disposed = false;
     let mindar: MindARThreeInstance | null = null;
     let clearScene: (() => void) | null = null;
 
     const boot = async () => {
-      if (!containerRef.current) return;
+      cleanupContainer(container);
 
       setStatus("loading");
       setTargetFound(false);
@@ -110,7 +120,7 @@ export default function WebARScene() {
         }
 
         mindar = new MindARThree({
-          container: containerRef.current,
+          container,
           imageTargetSrc: "/assets/targets/sculpture.mind",
           uiLoading: false,
           uiScanning: false,
@@ -136,7 +146,16 @@ export default function WebARScene() {
         const clock = new THREE.Clock();
 
         await mindar.start();
-        if (disposed) return;
+        if (disposed) {
+          anchoredScene.dispose();
+          try {
+            mindar.stop();
+          } catch {
+            // no-op cleanup
+          }
+          cleanupContainer(container);
+          return;
+        }
 
         setStatus("running");
         renderer.setAnimationLoop(() => {
@@ -173,6 +192,7 @@ export default function WebARScene() {
       } catch {
         // no-op cleanup
       }
+      cleanupContainer(container);
     };
   }, [hasStarted, reloadToken]);
 
