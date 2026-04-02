@@ -28,7 +28,6 @@ export const createAnchoredScene = async (): Promise<AnchoredScene> => {
 
   const loader = new GLTFLoader();
   const mixers: THREE.AnimationMixer[] = [];
-  let elapsed = 0;
 
   const sculpture = await loadModel(loader, MODEL_PATHS.sculpture);
   sculpture.scene.position.set(0, 0.05, 0);
@@ -61,15 +60,19 @@ export const createAnchoredScene = async (): Promise<AnchoredScene> => {
   try {
     const characterModel = await loadModel(loader, MODEL_PATHS.character);
     character = characterModel.scene;
-    character.position.set(0.35, 0.02, 0);
+    // Keep the fox fixed on top of the target plane.
+    character.position.set(0, 0, 0.2);
     character.scale.setScalar(0.015);
     character.rotation.y = Math.PI;
     characterPivot.add(character);
 
     if (characterModel.animations.length > 0) {
       const mixer = new THREE.AnimationMixer(character);
-      const walk = mixer.clipAction(characterModel.animations[0]);
-      walk.play();
+      const preferredClip =
+        characterModel.animations.find((clip) => /survey|idle|stand/i.test(clip.name)) ??
+        characterModel.animations[0];
+      const action = mixer.clipAction(preferredClip);
+      action.play();
       mixers.push(mixer);
     }
   } catch {
@@ -77,23 +80,12 @@ export const createAnchoredScene = async (): Promise<AnchoredScene> => {
       new THREE.BoxGeometry(0.08, 0.16, 0.08),
       new THREE.MeshStandardMaterial({ color: 0xff8b5f }),
     );
-    fallbackWalker.position.set(0.35, 0.08, 0);
+    fallbackWalker.position.set(0, 0.08, 0.2);
     characterPivot.add(fallbackWalker);
   }
 
   const update = (deltaSeconds: number) => {
-    elapsed += deltaSeconds;
     mixers.forEach((mixer) => mixer.update(deltaSeconds));
-
-    characterPivot.rotation.y += deltaSeconds * 0.7;
-
-    if (character) {
-      character.rotation.y = Math.PI + Math.sin(elapsed * 0.9) * 0.2;
-    }
-
-    if (fallbackWalker) {
-      fallbackWalker.position.y = 0.08 + Math.abs(Math.sin(elapsed * 6)) * 0.02;
-    }
   };
 
   const dispose = () => {
