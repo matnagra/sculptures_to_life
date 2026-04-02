@@ -20,6 +20,45 @@ type MindARThreeInstance = {
   stop: () => void;
 };
 
+type MindARWindow = Window & {
+  MINDAR?: {
+    IMAGE?: {
+      MindARThree?: new (options: {
+        container: HTMLElement;
+        imageTargetSrc: string;
+        uiLoading?: boolean;
+        uiScanning?: boolean;
+        uiError?: boolean;
+      }) => MindARThreeInstance;
+    };
+  };
+};
+
+const MINDAR_SCRIPT_ID = "mindar-image-three-script";
+const MINDAR_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
+
+const loadMindARScript = async (): Promise<void> => {
+  const existing = document.getElementById(MINDAR_SCRIPT_ID) as HTMLScriptElement | null;
+  if (existing) {
+    if ((window as MindARWindow).MINDAR?.IMAGE?.MindARThree) return;
+    await new Promise<void>((resolve, reject) => {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("MindAR script failed to load")), { once: true });
+    });
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.id = MINDAR_SCRIPT_ID;
+    script.src = MINDAR_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("MindAR script failed to load"));
+    document.head.appendChild(script);
+  });
+};
+
 export default function WebARScene() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<ARStatus>("loading");
@@ -40,14 +79,11 @@ export default function WebARScene() {
       setErrorMessage(null);
 
       try {
-        const mindarModule = await import("mind-ar/dist/mindar-image-three.prod.js");
-        const MindARThree = mindarModule.MindARThree as new (options: {
-          container: HTMLElement;
-          imageTargetSrc: string;
-          uiLoading?: boolean;
-          uiScanning?: boolean;
-          uiError?: boolean;
-        }) => MindARThreeInstance;
+        await loadMindARScript();
+        const MindARThree = (window as MindARWindow).MINDAR?.IMAGE?.MindARThree;
+        if (!MindARThree) {
+          throw new Error("MindAR global is unavailable");
+        }
 
         mindar = new MindARThree({
           container: containerRef.current,
