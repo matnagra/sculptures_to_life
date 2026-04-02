@@ -6,7 +6,7 @@ MVP WebAR para abrir desde URL en celular, detectar un target visual y renderiza
 
 - `Next.js` (App Router, TypeScript)
 - `Three.js` (render, luces, modelos GLB, animacion)
-- `MindAR` (image tracking en navegador movil, cargado por CDN en runtime)
+- `MindAR` (image tracking en navegador movil, cargado localmente desde `public/vendor`)
 
 ## Arquitectura
 

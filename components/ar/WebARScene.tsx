@@ -35,7 +35,7 @@ type MindARWindow = Window & {
 };
 
 const MINDAR_SCRIPT_ID = "mindar-image-three-script";
-const MINDAR_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js";
+const MINDAR_SCRIPT_URL = "/vendor/mindar-image-three.prod.js";
 
 const loadMindARScript = async (): Promise<void> => {
   const existing = document.getElementById(MINDAR_SCRIPT_ID) as HTMLScriptElement | null;
@@ -64,9 +64,12 @@ export default function WebARScene() {
   const [status, setStatus] = useState<ARStatus>("loading");
   const [targetFound, setTargetFound] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!hasStarted) return;
+
     let disposed = false;
     let mindar: MindARThreeInstance | null = null;
     let clearScene: (() => void) | null = null;
@@ -128,8 +131,9 @@ export default function WebARScene() {
       } catch (error) {
         console.error("Error starting WebAR scene", error);
         setStatus("error");
+        const detail = error instanceof Error ? error.message : "Error desconocido";
         setErrorMessage(
-          "No se pudo iniciar la camara o WebAR. Revisa permisos de camara y prueba en HTTPS desde celular.",
+          `No se pudo iniciar la camara o WebAR (${detail}). Revisa permisos de camara, HTTPS y evita navegador embebido de redes sociales.`,
         );
       }
     };
@@ -149,16 +153,32 @@ export default function WebARScene() {
         // no-op cleanup
       }
     };
-  }, [reloadToken]);
+  }, [hasStarted, reloadToken]);
 
   return (
     <section className={styles.wrapper}>
       <div className={styles.arCanvas} ref={containerRef} />
 
       <div className={styles.overlay}>
+        {!hasStarted ? (
+          <button
+            type="button"
+            className={styles.retry}
+            onClick={() => {
+              setStatus("loading");
+              setErrorMessage(null);
+              setHasStarted(true);
+            }}
+          >
+            Iniciar camara AR
+          </button>
+        ) : null}
+
         <p className={styles.badge}>
           Estado:{" "}
-          {status === "loading"
+          {!hasStarted
+            ? "listo para iniciar"
+            : status === "loading"
             ? "iniciando camara"
             : status === "running"
               ? targetFound
@@ -173,7 +193,14 @@ export default function WebARScene() {
 
         {status === "error" && errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
 
-        <button type="button" className={styles.retry} onClick={() => setReloadToken((prev) => prev + 1)}>
+        <button
+          type="button"
+          className={styles.retry}
+          onClick={() => {
+            setHasStarted(true);
+            setReloadToken((prev) => prev + 1);
+          }}
+        >
           Reiniciar WebAR
         </button>
       </div>
