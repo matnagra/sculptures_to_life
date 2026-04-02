@@ -60,10 +60,18 @@ export const createAnchoredScene = async (): Promise<AnchoredScene> => {
   try {
     const characterModel = await loadModel(loader, MODEL_PATHS.character);
     character = characterModel.scene;
-    // Keep the fox fixed on top of the target plane.
-    character.position.set(0, 0, 0.2);
+
+    // Orientation fix:
+    // - rotate to make the fox stand on the target plane (feet down)
+    // - orient the back towards the camera when viewing target perpendicularly
+    character.rotation.set(0, Math.PI, Math.PI / 2);
     character.scale.setScalar(0.015);
-    character.rotation.y = Math.PI;
+
+    // Snap feet to the target plane regardless of model pivot.
+    const bbox = new THREE.Box3().setFromObject(character);
+    const minY = bbox.min.y;
+    character.position.set(0, -minY, 0.2);
+
     characterPivot.add(character);
 
     if (characterModel.animations.length > 0) {
