@@ -36,8 +36,28 @@ type MindARWindow = Window & {
 
 const MINDAR_SCRIPT_ID = "mindar-image-three-script";
 const MINDAR_SCRIPT_URL = "/vendor/mindar-image-three.prod.js";
+const MINDAR_IMPORTMAP_ID = "mindar-importmap";
+
+const ensureImportMap = (): void => {
+  if (document.getElementById(MINDAR_IMPORTMAP_ID)) return;
+
+  const importMap = {
+    imports: {
+      three: "/vendor/three/three.module.js",
+      "three/addons/": "/vendor/three/addons/",
+    },
+  };
+
+  const script = document.createElement("script");
+  script.id = MINDAR_IMPORTMAP_ID;
+  script.type = "importmap";
+  script.textContent = JSON.stringify(importMap);
+  document.head.appendChild(script);
+};
 
 const loadMindARScript = async (): Promise<void> => {
+  ensureImportMap();
+
   const existing = document.getElementById(MINDAR_SCRIPT_ID) as HTMLScriptElement | null;
   if (existing) {
     if ((window as MindARWindow).MINDAR?.IMAGE?.MindARThree) return;
@@ -52,6 +72,7 @@ const loadMindARScript = async (): Promise<void> => {
     const script = document.createElement("script");
     script.id = MINDAR_SCRIPT_ID;
     script.src = MINDAR_SCRIPT_URL;
+    script.type = "module";
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("MindAR script failed to load"));
