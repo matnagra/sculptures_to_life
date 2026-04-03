@@ -12,10 +12,28 @@ MVP WebAR para abrir desde URL en celular, detectar un target visual y renderiza
 
 - `app/page.tsx`: entrada del MVP.
 - `components/ar/WebARScene.tsx`: inicializa camara + MindAR, crea anchor, loop de render y estados de UI.
-- `components/ar/createScene.ts`: compone escena 3D anclada (escultura placeholder, personaje animado, oclusor invisible).
+- `components/ar/createScene.ts`: compone escena 3D anclada.
 - `public/assets/targets/sculpture.mind`: target compilado.
 - `public/assets/images/target-print.png`: imagen que corresponde al target.
 - `public/assets/models/*.glb`: placeholders de escultura y personaje.
+- `public/vendor/*`: runtime de MindAR + chunks + three.module para carga browser-only.
+
+## Estado actual de la escena
+
+`createScene.ts` implementa:
+
+- cubo/escultura placeholder en el centro,
+- 3 zorros:
+  - 2 quietos,
+  - 1 con animacion caminando en ida/vuelta lineal,
+- oclusion simple con mesh invisible.
+
+Parametros utiles para tunear rapido (en `createScene.ts`):
+
+- `spacingMultiplier`: separacion general entre zorros.
+- `walkSpeed`: velocidad del zorro en movimiento.
+- `walkHalfDistance`: cuanto avanza/recula.
+- `walkCenterX`, `walkCenterZ`: eje/carril de movimiento.
 
 ## Requisitos previos
 
@@ -46,6 +64,28 @@ Luego abre `http://localhost:3000`.
 Notas:
 - En desktop, camara/tracking pueden no representar el comportamiento real movil.
 - Para pruebas reales de camara en celular, usa HTTPS (deploy en Vercel recomendado).
+- Para pruebas moviles sin deploy, usa `ngrok` (ver seccion siguiente).
+
+## Prueba movil rapida con ngrok
+
+1. Levanta el proyecto:
+
+```bash
+npm run dev
+```
+
+2. En otra terminal:
+
+```bash
+npx ngrok http 3000
+```
+
+3. Abre en celular la URL HTTPS `https://*.ngrok-free.app`.
+
+Importante:
+
+- `next.config.ts` incluye `allowedDevOrigins: ["*.ngrok-free.app"]`.
+- Si cambias esta config, reinicia `npm run dev`.
 
 ## Build de produccion
 
@@ -115,6 +155,21 @@ Esto permite ocultar parcialmente objetos 3D cuando quedan detras del volumen ap
    - [MindAR Image Target Compiler](https://hiukim.github.io/mind-ar-js-doc/tools/compile/)
 2. Guarda el archivo compilado como `public/assets/targets/sculpture.mind` (o cambia la ruta en `WebARScene.tsx`).
 3. Guarda la imagen de referencia en `public/assets/images/target-print.png`.
+
+Nota importante:
+
+- Cambiar solo `target-print.png` **no** cambia el tracking si no recompilas tambien `sculpture.mind`.
+
+## Notas de implementacion MindAR (para handoff)
+
+- MindAR se carga en runtime desde `public/vendor/mindar-image-three.prod.js` como modulo.
+- Se usan archivos auxiliares vendorizados:
+  - `public/vendor/controller-mGt1s8dJ.js`
+  - `public/vendor/ui-fBadYuor.js`
+  - `public/vendor/three/three.module.js`
+  - `public/vendor/three/addons/renderers/CSS3DRenderer.js`
+- En `WebARScene.tsx` se inyecta `importmap` para resolver `three` y `three/addons/`.
+- El boton `Iniciar camara AR` fuerza gesto de usuario (mejora compatibilidad Safari).
 
 ## Ajustar posicion, escala y rotacion de la escena
 

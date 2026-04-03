@@ -134,6 +134,11 @@ export default function WebARScene() {
 
         const anchor = mindar.addAnchor(0);
         const anchoredScene = await createAnchoredScene();
+        // Align content with the tracked image plane (instead of popping out perpendicular).
+        anchoredScene.root.rotation.x = Math.PI / 2;
+        // Target image is portrait-oriented; rotate 90deg on the anchor plane so X follows width.
+        anchoredScene.root.rotation.y = Math.PI / 2;
+        anchoredScene.root.position.z = 0.001;
         anchor.group.add(anchoredScene.root);
 
         anchor.onTargetFound = () => {
