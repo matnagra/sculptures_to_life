@@ -1,6 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 *.zip
-Medieval*
+
+# local assets library outside public
+/assets_library/
 
 # dependencies
 /node_modules

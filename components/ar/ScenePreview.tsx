@@ -4,10 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createAnchoredScene } from "@/components/ar/createScene";
+import type { SceneAsset } from "@/lib/sceneLayout";
 import styles from "@/components/ar/ScenePreview.module.css";
 
-export default function ScenePreview() {
+type ScenePreviewProps = {
+  layout: SceneAsset[];
+};
+
+export default function ScenePreview({ layout }: ScenePreviewProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const initialLayoutRef = useRef(layout);
+  const anchorPreviewRef = useRef<THREE.Group | null>(null);
+  const anchoredRef = useRef<Awaited<ReturnType<typeof createAnchoredScene>> | null>(null);
+  const readyRef = useRef(false);
+  const updateTokenRef = useRef(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
@@ -26,12 +36,15 @@ export default function ScenePreview() {
         scene.background = new THREE.Color(0x0f172a);
 
         const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
-        camera.position.set(1.35, 1.05, 1.45);
-        camera.lookAt(0, 0.2, 0);
+        camera.position.set(1.35, 1.05, 1.35);
+        camera.lookAt(0, 0, 0);
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.domElement.style.width = "100%";
+        renderer.domElement.style.height = "100%";
+        renderer.domElement.style.display = "block";
         mount.innerHTML = "";
         mount.appendChild(renderer.domElement);
 
@@ -39,7 +52,7 @@ export default function ScenePreview() {
           if (!renderer || !mount) return;
           const width = mount.clientWidth;
           const height = mount.clientHeight;
-          renderer.setSize(width, height, false);
+          renderer.setSize(width, height, true);
           camera.aspect = width / Math.max(height, 1);
           camera.updateProjectionMatrix();
         };
@@ -49,7 +62,7 @@ export default function ScenePreview() {
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
-        controls.target.set(0, 0.12, 0);
+        controls.target.set(0, 0, 0);
         controls.minDistance = 0.35;
         controls.maxDistance = 6;
         controls.maxPolarAngle = Math.PI * 0.49;
@@ -77,10 +90,13 @@ export default function ScenePreview() {
         const anchorPreview = new THREE.Group();
         anchorPreview.position.set(0, 0, 0);
         anchorPreview.rotation.y = Math.PI / 2;
+        anchorPreviewRef.current = anchorPreview;
         anchorPreview.add(target);
-        const anchored = await createAnchoredScene();
+        const anchored = await createAnchoredScene({ layout: initialLayoutRef.current });
+        anchoredRef.current = anchored;
         anchorPreview.add(anchored.root);
         scene.add(anchorPreview);
+        readyRef.current = true;
 
         const clock = new THREE.Clock();
         let t = 0;
@@ -88,7 +104,7 @@ export default function ScenePreview() {
         const tick = () => {
           if (disposed || !renderer) return;
           const delta = clock.getDelta();
-          anchored.update(delta);
+          anchoredRef.current?.update(delta);
           t += delta;
           target.material.opacity = 0.9 + Math.sin(t * 1.5) * 0.05;
           controls.update();
@@ -100,7 +116,10 @@ export default function ScenePreview() {
           window.removeEventListener("resize", resize);
           if (animationFrame) window.cancelAnimationFrame(animationFrame);
           controls.dispose();
-          anchored.dispose();
+          anchoredRef.current?.dispose();
+          anchoredRef.current = null;
+          anchorPreviewRef.current = null;
+          readyRef.current = false;
           ground.geometry.dispose();
           (ground.material as THREE.MeshStandardMaterial).dispose();
           target.geometry.dispose();
@@ -131,6 +150,41 @@ export default function ScenePreview() {
       clearScene?.();
     };
   }, []);
+
+  useEffect(() => {
+    if (!readyRef.current || !anchorPreviewRef.current) return;
+
+    let cancelled = false;
+    const token = ++updateTokenRef.current;
+
+    const replaceAnchoredScene = async () => {
+      try {
+        const nextAnchored = await createAnchoredScene({ layout });
+        if (cancelled || token !== updateTokenRef.current || !anchorPreviewRef.current) {
+          nextAnchored.dispose();
+          return;
+        }
+
+        const oldAnchored = anchoredRef.current;
+        if (oldAnchored) {
+          anchorPreviewRef.current.remove(oldAnchored.root);
+          oldAnchored.dispose();
+        }
+
+        anchorPreviewRef.current.add(nextAnchored.root);
+        anchoredRef.current = nextAnchored;
+        setStatus("ready");
+      } catch {
+        setStatus("error");
+      }
+    };
+
+    void replaceAnchoredScene();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [layout]);
 
   return (
     <section className={styles.wrapper}>

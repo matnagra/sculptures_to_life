@@ -1,0 +1,115 @@
+import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
+import path from "node:path";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const ROOT_ASSETS_LIBRARY_DIR = path.join(process.cwd(), "assets_library");
+const PUBLIC_ASSETS_LIBRARY_DIR = path.join(process.cwd(), "public/assets/models/assets_library");
+
+type ImportPayload = {
+  source: "public" | "root";
+  id: string;
+  name: string;
+  assetPath: string;
+};
+
+const toPosixPath = (value: string) => value.split(path.sep).join("/");
+
+const normalizeSafeRelativePath = (input: string): string | null => {
+  if (!input || input.includes("\0") || input.includes("\\")) return null;
+  const normalized = path.posix.normalize(input);
+  if (normalized.startsWith("/") || normalized.startsWith("../") || normalized.includes("/../")) return null;
+  return normalized;
+};
+
+const safeCollectionId = (name: string): string => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+};
+
+const resolveInside = (base: string, relativePath: string): string => {
+  const absolute = path.resolve(base, relativePath);
+  const relativeFromBase = path.relative(base, absolute);
+  if (relativeFromBase.startsWith("..") || path.isAbsolute(relativeFromBase)) {
+    throw new Error("Path fuera de rango.");
+  }
+  return absolute;
+};
+
+const extractDependencyUris = (gltfJson: string): string[] => {
+  try {
+    const parsed = JSON.parse(gltfJson) as {
+      buffers?: Array<{ uri?: string }>;
+      images?: Array<{ uri?: string }>;
+    };
+    const uris = [...(parsed.buffers ?? []), ...(parsed.images ?? [])]
+      .map((entry) => entry.uri ?? "")
+      .filter((uri) => uri && !uri.startsWith("data:"));
+    return Array.from(new Set(uris));
+  } catch {
+    return [];
+  }
+};
+
+const copyKeepingRelativePath = async (sourceCollectionDir: string, targetCollectionDir: string, relativeFile: string) => {
+  const sourceAbsolute = resolveInside(sourceCollectionDir, relativeFile);
+  const targetAbsolute = resolveInside(targetCollectionDir, relativeFile);
+  await mkdir(path.dirname(targetAbsolute), { recursive: true });
+  await copyFile(sourceAbsolute, targetAbsolute);
+};
+
+export async function POST(request: Request) {
+  try {
+    const payload = (await request.json()) as Partial<ImportPayload>;
+    const source = payload.source;
+    const collectionName = typeof payload.name === "string" ? payload.name : "";
+    const assetPathRaw = typeof payload.assetPath === "string" ? payload.assetPath : "";
+    const assetPath = normalizeSafeRelativePath(assetPathRaw);
+
+    if (!source || (source !== "public" && source !== "root")) {
+      return Response.json({ error: "Source invalido." }, { status: 400 });
+    }
+    if (!collectionName || !assetPath || !assetPath.endsWith(".gltf")) {
+      return Response.json({ error: "Payload invalido." }, { status: 400 });
+    }
+
+    if (source === "public") {
+      return Response.json({
+        collection: payload.id || collectionName,
+        file: assetPath,
+        sourceCollection: collectionName,
+      });
+    }
+
+    const sourceCollectionDir = resolveInside(ROOT_ASSETS_LIBRARY_DIR, collectionName);
+    const sourceAssetAbsolute = resolveInside(sourceCollectionDir, assetPath);
+    await stat(sourceAssetAbsolute);
+
+    const targetCollection = safeCollectionId(collectionName);
+    const targetCollectionDir = path.join(PUBLIC_ASSETS_LIBRARY_DIR, targetCollection);
+
+    await copyKeepingRelativePath(sourceCollectionDir, targetCollectionDir, assetPath);
+    const gltfContent = await readFile(sourceAssetAbsolute, "utf-8");
+    const dependencyUris = extractDependencyUris(gltfContent);
+
+    const gltfParent = path.posix.dirname(assetPath);
+    for (const uri of dependencyUris) {
+      const dependencyRelative = normalizeSafeRelativePath(path.posix.join(gltfParent, uri));
+      if (!dependencyRelative) continue;
+      await copyKeepingRelativePath(sourceCollectionDir, targetCollectionDir, dependencyRelative);
+    }
+
+    return Response.json({
+      collection: targetCollection,
+      file: toPosixPath(assetPath),
+      sourceCollection: collectionName,
+    });
+  } catch (error) {
+    console.error("Failed to import asset", error);
+    return Response.json({ error: "No se pudo importar el asset." }, { status: 500 });
+  }
+}

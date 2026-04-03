@@ -1,5 +1,5 @@
-import ScenePreview from "@/components/ar/ScenePreview";
+import PreviewEditor from "@/components/ar/PreviewEditor";
 
 export default function PreviewPage() {
-  return <ScenePreview />;
+  return <PreviewEditor />;
 }

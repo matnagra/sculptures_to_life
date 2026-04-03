@@ -1,0 +1,70 @@
+{
+  "assets": [
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/WindowShutters_Thin_Flat_Open.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "position": [
+        0.48,
+        -0.48,
+        0
+      ],
+      "rotationZ": 0
+    },
+    {
+      "collection": "fantasy-props-megakit-standard",
+      "file": "glTF/Barrel_Holder.gltf",
+      "sourceCollection": "Fantasy Props MegaKit[Standard]",
+      "position": [
+        -0.48,
+        -0.16,
+        0
+      ],
+      "rotationZ": 0
+    },
+    {
+      "collection": "fantasy-props-megakit-standard",
+      "file": "glTF/Anvil_Log.gltf",
+      "sourceCollection": "Fantasy Props MegaKit[Standard]",
+      "position": [
+        0.16,
+        -0.48,
+        0
+      ],
+      "rotationZ": 0
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Door_8_Flat.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "position": [
+        0.48,
+        -0.48,
+        0
+      ],
+      "rotationZ": 0
+    },
+    {
+      "collection": "fantasy-props-megakit-standard",
+      "file": "glTF/Barrel.gltf",
+      "sourceCollection": "Fantasy Props MegaKit[Standard]",
+      "position": [
+        -0.48,
+        -0.16,
+        0
+      ],
+      "rotationZ": 0
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Roof_Wooden_2x1_L.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "position": [
+        -0.16,
+        -0.16,
+        0
+      ],
+      "rotationZ": 0
+    }
+  ]
+}

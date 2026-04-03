@@ -1,0 +1,209 @@
+.editor {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  width: 100vw;
+  height: 100vh;
+  background: #020617;
+}
+
+.panel {
+  overflow: auto;
+  border-right: 1px solid rgba(148, 163, 184, 0.25);
+  background: #0b1220;
+  color: #e2e8f0;
+  padding: 1rem;
+}
+
+.panelHeader {
+  margin-bottom: 1rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.84rem;
+  color: #94a3b8;
+}
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 9px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #eff6ff;
+}
+
+.secondaryButton {
+  background: rgba(15, 23, 42, 0.82);
+  color: #dbeafe;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.assetButton:disabled,
+.removeButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.section {
+  margin-top: 1rem;
+}
+
+.sectionScrollable {
+  max-height: 34vh;
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.35);
+  padding: 0.3rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.45rem;
+  font-size: 0.86rem;
+  color: #cbd5e1;
+}
+
+.collection {
+  margin-bottom: 0.65rem;
+}
+
+.collectionHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.98);
+  border-radius: 8px;
+  padding: 0.32rem 0.42rem;
+  cursor: pointer;
+}
+
+.collectionChevron {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.collectionName {
+  margin: 0;
+  text-align: left;
+  font-size: 0.74rem;
+  color: #94a3b8;
+}
+
+.assetList {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.assetButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.assetThumb {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: #1e293b;
+  object-fit: cover;
+}
+
+.assetLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  font-size: 0.62rem;
+  line-height: 1.15;
+  color: #cbd5e1;
+}
+
+.sceneAssetCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.22rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  padding: 0.3rem 0.2rem;
+  background: rgba(15, 23, 42, 0.78);
+  min-width: 0;
+}
+
+.removeButton {
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+  border-radius: 7px;
+  font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+  cursor: pointer;
+}
+
+.error {
+  margin: 0.4rem 0 0;
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+.empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.previewArea {
+  min-width: 0;
+}
+
+.previewLoading {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: #0f172a;
+}

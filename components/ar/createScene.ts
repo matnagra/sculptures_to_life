@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { SceneAsset } from "@/lib/sceneLayout";
 
 type AnchoredScene = {
   root: THREE.Group;
@@ -7,16 +8,10 @@ type AnchoredScene = {
   dispose: () => void;
 };
 
-type VillageAsset = {
-  file: string;
-  // Semantic coordinates: X=ancho, Y=largo, Z=vertical.
-  position: [number, number, number];
-  // Rotation around semantic Z (vertical).
-  rotationZ?: number;
-  scale?: number;
+type CreateAnchoredSceneOptions = {
+  layout?: SceneAsset[];
 };
 
-const VILLAGE_BASE_PATH = "/assets/models/medieval-village";
 const DEFAULT_SCALE = 0.2;
 
 // Convert semantic XYZ (X ancho, Y largo, Z vertical) to Three.js axes.
@@ -55,20 +50,26 @@ const createAxisLabel = (label: "X" | "Y" | "Z", color: string) => {
   return { sprite, texture, material };
 };
 
-const HOUSE_LAYOUT: VillageAsset[] = [
-  { file: "Floor_WoodDark.gltf", position: [0, 0, 0] },
-  { file: "Wall_Plaster_Door_Flat.gltf", position: [0, 0.65, 0], rotationZ: 0 },
-  { file: "Wall_Plaster_Straight.gltf", position: [0, -0.65, 0], rotationZ: Math.PI },
-  { file: "Wall_Plaster_Window_Wide_Flat.gltf", position: [0.65, 0, 0], rotationZ: Math.PI / 2 },
-  { file: "Wall_Plaster_Window_Thin_Round.gltf", position: [-0.65, 0, 0], rotationZ: -Math.PI / 2 },
-  { file: "Roof_Wooden_2x1.gltf", position: [0, 0, 0.62], rotationZ: 0 },
-  { file: "Roof_Wooden_2x1_L.gltf", position: [0.5, 0, 0.62], rotationZ: 0 },
-  { file: "Roof_Wooden_2x1_R.gltf", position: [-0.5, 0, 0.62], rotationZ: 0 },
-  { file: "Prop_Chimney.gltf", position: [-0.2, -0.1, 0.62], rotationZ: 0, scale: 0.17 },
+const DEFAULT_HOUSE_LAYOUT: SceneAsset[] = [
+  { collection: "medieval-village", file: "Floor_WoodDark.gltf", position: [0, 0, 0] },
+  { collection: "medieval-village", file: "Wall_Plaster_Door_Flat.gltf", position: [0, 0.65, 0], rotationZ: 0 },
+  { collection: "medieval-village", file: "Wall_Plaster_Straight.gltf", position: [0, -0.65, 0], rotationZ: Math.PI },
+  { collection: "medieval-village", file: "Wall_Plaster_Straight.gltf", position: [0.65, 0, 0], rotationZ: Math.PI / 2 },
+  { collection: "medieval-village", file: "Wall_Plaster_Straight.gltf", position: [-0.65, 0, 0], rotationZ: -Math.PI / 2 },
+  { collection: "medieval-village", file: "Roof_Wooden_2x1.gltf", position: [0, 0, 0.62], rotationZ: 0 },
 ];
 
 const loadModel = async (loader: GLTFLoader, path: string) => {
   return await loader.loadAsync(path);
+};
+
+const buildAssetUrl = (asset: SceneAsset): string => {
+  const encodedCollection = encodeURIComponent(asset.collection);
+  const encodedFilePath = asset.file
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  return `/assets/models/assets_library/${encodedCollection}/${encodedFilePath}`;
 };
 
 const prepareModel = (object: THREE.Object3D) => {
@@ -93,7 +94,8 @@ const removeGroundArtifacts = (object: THREE.Object3D) => {
   toRemove.forEach((node) => node.parent?.remove(node));
 };
 
-export const createAnchoredScene = async (): Promise<AnchoredScene> => {
+export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = {}): Promise<AnchoredScene> => {
+  const layout = options.layout && options.layout.length > 0 ? options.layout : DEFAULT_HOUSE_LAYOUT;
   const root = new THREE.Group();
   root.name = "sculpture-anchor-root";
   root.scale.setScalar(0.22);
@@ -143,14 +145,14 @@ export const createAnchoredScene = async (): Promise<AnchoredScene> => {
   }
 
   const settledLoads = await Promise.allSettled(
-    HOUSE_LAYOUT.map((asset) => loadModel(loader, `${VILLAGE_BASE_PATH}/${asset.file}`)),
+    layout.map((asset) => loadModel(loader, buildAssetUrl(asset))),
   );
 
   let loadedCount = 0;
   settledLoads.forEach((result, index) => {
-    const asset = HOUSE_LAYOUT[index];
+    const asset = layout[index];
     if (result.status !== "fulfilled") {
-      console.warn(`[house] Asset no cargado: ${asset.file}`);
+      console.warn(`[house] Asset no cargado: ${asset.collection}/${asset.file}`);
       return;
     }
 

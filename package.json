@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "thumbnails:generate": "PLAYWRIGHT_BROWSERS_PATH=0 node scripts/generate-thumbnails.mjs"
   },
   "dependencies": {
     "next": "16.2.2",
@@ -21,6 +22,7 @@
     "@types/three": "^0.151.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "playwright": "^1.53.2",
     "typescript": "^5"
   }
 }
