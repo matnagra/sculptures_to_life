@@ -35,6 +35,52 @@
   margin-bottom: 0.8rem;
 }
 
+.transformToolbar {
+  margin-bottom: 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 0.5rem;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.transformTitle {
+  display: block;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  margin-bottom: 0.35rem;
+}
+
+.transformButtons {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.transformButton,
+.transformButtonActive {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 8px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.transformButton {
+  background: rgba(15, 23, 42, 0.9);
+  color: #cbd5e1;
+}
+
+.transformButtonActive {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #eff6ff;
+}
+
+.transformHint {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
 .primaryButton,
 .secondaryButton {
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -65,6 +111,36 @@
 
 .section {
   margin-top: 1rem;
+}
+
+.groupCreator {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.groupActions {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.35rem 0;
+}
+
+.groupBody {
+  margin-top: 0.3rem;
+  margin-left: 0.55rem;
+  padding-left: 0.45rem;
+  border-left: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.groupInput,
+.groupSelect {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.8);
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  padding: 0.28rem 0.4rem;
 }
 
 .sectionScrollable {
@@ -99,6 +175,36 @@
   border-radius: 8px;
   padding: 0.32rem 0.42rem;
   cursor: pointer;
+}
+
+.groupToggleButton {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(2, 6, 23, 0.65);
+  border-radius: 6px;
+  padding: 0.1rem 0.28rem;
+  cursor: pointer;
+}
+
+.groupNameButton {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  text-align: left;
+  font-size: 0.74rem;
+  cursor: pointer;
+  flex: 1;
+}
+
+.groupNameButtonActive {
+  border: 1px solid rgba(250, 204, 21, 0.8);
+  background: rgba(113, 63, 18, 0.3);
+  color: #fde68a;
+  text-align: left;
+  font-size: 0.74rem;
+  cursor: pointer;
+  flex: 1;
+  border-radius: 6px;
+  padding: 0.12rem 0.35rem;
 }
 
 .collectionChevron {
@@ -170,12 +276,46 @@
   min-width: 0;
 }
 
+.sceneAssetLabel,
+.sceneAssetLabelActive {
+  border: none;
+  background: transparent;
+  width: 100%;
+  min-width: 0;
+  font-size: 0.62rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sceneAssetLabel {
+  color: #cbd5e1;
+}
+
+.sceneAssetLabelActive {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
 .removeButton {
   border: 1px solid rgba(248, 113, 113, 0.5);
   background: rgba(127, 29, 29, 0.28);
   color: #fecaca;
   border-radius: 7px;
   font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+  cursor: pointer;
+}
+
+.iconButton {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(30, 41, 59, 0.8);
+  color: #e2e8f0;
+  border-radius: 7px;
+  font-size: 0.72rem;
   padding: 0.1rem 0.35rem;
   cursor: pointer;
 }
@@ -198,6 +338,7 @@
 
 .previewArea {
   min-width: 0;
+  position: relative;
 }
 
 .previewLoading {
@@ -206,4 +347,73 @@
   display: grid;
   place-items: center;
   background: #0f172a;
+}
+
+.previewTopRightTools {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 3;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  padding: 0.45rem;
+  background: rgba(15, 23, 42, 0.86);
+}
+
+.previewBottomPanel {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 3;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.86);
+  padding: 0.5rem 0.65rem;
+}
+
+.previewBottomTitle {
+  margin: 0 0 0.18rem;
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.previewBottomValues {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.paramRows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+
+.paramRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.paramLabel {
+  color: #94a3b8;
+  font-size: 0.68rem;
+}
+
+.paramInput {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 7px;
+  background: rgba(2, 6, 23, 0.8);
+  color: #e2e8f0;
+  padding: 0.28rem 0.4rem;
+  font-size: 0.76rem;
+}
+
+.paramInput:focus {
+  outline: 1px solid #3b82f6;
+  border-color: #3b82f6;
 }
