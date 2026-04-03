@@ -26,6 +26,11 @@ export const fromThreePosition = (position: THREE.Vector3): [number, number, num
   return [position.x, position.z, position.y];
 };
 
+const toThreeScale = (scale: [number, number, number]): [number, number, number] => {
+  const [x, y, z] = scale;
+  return [x, z, y];
+};
+
 /** Must match how we serialize/apply scene rotations. */
 export const LAYOUT_EULER_ORDER: THREE.EulerOrder = "YXZ";
 
@@ -38,6 +43,16 @@ export const fromThreeRotation = (object: THREE.Object3D): [number, number, numb
   const euler = new THREE.Euler(0, 0, 0, LAYOUT_EULER_ORDER);
   euler.setFromQuaternion(object.quaternion, LAYOUT_EULER_ORDER);
   return [euler.x, euler.y, euler.z];
+};
+
+export const getLayoutScale = (asset: SceneAsset): [number, number, number] => {
+  if (asset.scale3) return asset.scale3;
+  const uniform = asset.scale ?? DEFAULT_SCALE;
+  return [uniform, uniform, uniform];
+};
+
+export const fromThreeScale = (object: THREE.Object3D): [number, number, number] => {
+  return [object.scale.x, object.scale.z, object.scale.y];
 };
 
 const createAxisLabel = (label: "X" | "Y" | "Z", color: string) => {
@@ -183,7 +198,7 @@ export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = 
     const [rx, ry, rz] = getLayoutRotation(asset);
     instance.rotation.order = LAYOUT_EULER_ORDER;
     instance.rotation.set(rx, ry, rz, LAYOUT_EULER_ORDER);
-    instance.scale.setScalar(asset.scale ?? DEFAULT_SCALE);
+    instance.scale.set(...toThreeScale(getLayoutScale(asset)));
     instance.userData.layoutIndex = index;
     instance.traverse((node) => {
       node.userData.layoutIndex = index;

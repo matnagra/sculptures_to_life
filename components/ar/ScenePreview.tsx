@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import { createAnchoredScene, fromThreePosition, fromThreeRotation, getLayoutRotation, LAYOUT_EULER_ORDER } from "@/components/ar/createScene";
+import { createAnchoredScene, fromThreePosition, fromThreeRotation, fromThreeScale, getLayoutRotation, getLayoutScale, LAYOUT_EULER_ORDER } from "@/components/ar/createScene";
 import type { SceneAsset } from "@/lib/sceneLayout";
 import styles from "@/components/ar/ScenePreview.module.css";
 
@@ -14,7 +14,7 @@ type ScenePreviewProps = {
   layout: SceneAsset[];
   selectedAssetIndices: number[];
   transformMode: TransformMode;
-  onSelectionChange: (index: number | null) => void;
+  onSelectionChange: (selection: { indices: number[] }) => void;
   onAssetTransform: (index: number, asset: SceneAsset) => void;
   onAssetsTransform: (changes: Array<{ index: number; asset: SceneAsset }>, coalesceKey?: string) => void;
 };
@@ -43,6 +43,10 @@ export default function ScenePreview({
     return value.filter((item): item is number => Number.isInteger(item));
   };
   const getSelectionKey = (indices: number[]) => [...indices].sort((a, b) => a - b).join(",");
+  const toggleSelectionIndex = (indices: number[], index: number) => {
+    if (indices.includes(index)) return indices.filter((item) => item !== index);
+    return [...indices, index].sort((a, b) => a - b);
+  };
 
   const mountRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<EngineRefs | null>(null);
@@ -152,8 +156,8 @@ export default function ScenePreview({
       nextMatrix.decompose(instance.object.position, instance.object.quaternion, instance.object.scale);
       const src = layoutRef.current[instance.layoutIndex];
       if (!src) continue;
-      const nextScale = instance.object.scale.x;
       const rotation = fromThreeRotation(instance.object);
+      const scale3 = fromThreeScale(instance.object);
       changes.push({
         index: instance.layoutIndex,
         asset: {
@@ -161,7 +165,8 @@ export default function ScenePreview({
           position: fromThreePosition(instance.object.position),
           rotation,
           rotationZ: undefined,
-          scale: Number.isFinite(nextScale) ? nextScale : src.scale,
+          scale: undefined,
+          scale3,
         },
       });
     }
@@ -181,16 +186,41 @@ export default function ScenePreview({
     if (!engine) return;
     clearSelectionBox();
     detachMultiProxy();
-    if (transformModeRef.current === "observe") {
-      engine.transformControls.detach();
-      engine.transformControls.visible = false;
-      return;
-    }
     if (layoutIndices.length === 0 || !anchored) {
       engine.transformControls.detach();
       engine.transformControls.visible = false;
       return;
     }
+
+    if (transformModeRef.current === "observe") {
+      engine.transformControls.detach();
+      engine.transformControls.visible = false;
+      if (layoutIndices.length === 1) {
+        const instance = anchored.instances.find((item) => item.layoutIndex === layoutIndices[0]);
+        if (!instance) return;
+        const box = new THREE.BoxHelper(instance.object, 0xfacc15);
+        selectionBoxRef.current = box;
+        engine.scene.add(box);
+        return;
+      }
+
+      const instances = getSelectedInstances(layoutIndices);
+      if (instances.length === 0) return;
+      const bounds = new THREE.Box3();
+      instances.forEach((item, index) => {
+        if (index === 0) {
+          bounds.setFromObject(item.object);
+        } else {
+          bounds.expandByObject(item.object);
+        }
+      });
+      multiSelectionBoundsRef.current = bounds;
+      const boundsHelper = new THREE.Box3Helper(bounds, 0xfacc15);
+      selectionBoxRef.current = boundsHelper;
+      engine.scene.add(boundsHelper);
+      return;
+    }
+
     engine.transformControls.setMode(transformModeRef.current);
     engine.transformControls.setSpace(transformModeRef.current === "translate" ? "world" : "local");
     if (layoutIndices.length === 1) {
@@ -296,14 +326,15 @@ export default function ScenePreview({
           const inst = anchored.instances.find((i) => i.layoutIndex === idx);
           const src = layoutRef.current[idx];
           if (!inst || !src) return;
-          const s = inst.object.scale.x;
           const rotation = fromThreeRotation(inst.object);
+          const scale3 = fromThreeScale(inst.object);
           onAssetTransformRef.current(idx, {
             ...src,
             position: fromThreePosition(inst.object.position),
             rotation,
             rotationZ: undefined,
-            scale: Number.isFinite(s) ? s : src.scale,
+            scale: undefined,
+            scale3,
           });
         });
 
@@ -342,12 +373,36 @@ export default function ScenePreview({
 
         engineRef.current = { scene, camera, renderer, orbitControls, transformControls, anchorPreview, raycaster };
 
-        // Picking handler
+        // Picking runs on click release so camera drags keep the selection.
+        const clickState = {
+          active: false,
+          x: 0,
+          y: 0,
+          shiftKey: false,
+        };
+        const CLICK_MOVE_TOLERANCE_PX = 6;
+
         const onPointerDown = (event: PointerEvent) => {
           if (event.button !== 0 || draggingTransform.value) return;
+          clickState.active = true;
+          clickState.x = event.clientX;
+          clickState.y = event.clientY;
+          clickState.shiftKey = event.shiftKey;
+        };
+
+        const onPointerUp = (event: PointerEvent) => {
+          if (!clickState.active || event.button !== 0 || draggingTransform.value) {
+            clickState.active = false;
+            return;
+          }
+          const moved = Math.hypot(event.clientX - clickState.x, event.clientY - clickState.y);
+          clickState.active = false;
+          if (moved > CLICK_MOVE_TOLERANCE_PX) return;
+
           const engine = engineRef.current;
           const anchored = anchoredRef.current;
           if (!engine || !anchored || anchored.instances.length === 0) return;
+          const additive = clickState.shiftKey;
 
           const rect = renderer.domElement.getBoundingClientRect();
           if (rect.width <= 0 || rect.height <= 0) return;
@@ -370,8 +425,9 @@ export default function ScenePreview({
 
           if (hit) {
             const idx = hit.object.userData.layoutIndex as number;
-            onSelectionChangeRef.current(idx);
-            attachGizmo([idx]);
+            const nextSelection = additive ? toggleSelectionIndex(selectedAssetIndicesRef.current, idx) : [idx];
+            onSelectionChangeRef.current({ indices: nextSelection });
+            attachGizmo(nextSelection);
             return;
           }
 
@@ -389,15 +445,22 @@ export default function ScenePreview({
           }
 
           if (closestIdx !== null && closestPx < 120) {
-            onSelectionChangeRef.current(closestIdx);
-            attachGizmo([closestIdx]);
+            const nextSelection = additive ? toggleSelectionIndex(selectedAssetIndicesRef.current, closestIdx) : [closestIdx];
+            onSelectionChangeRef.current({ indices: nextSelection });
+            attachGizmo(nextSelection);
           } else {
-            onSelectionChangeRef.current(null);
+            onSelectionChangeRef.current({ indices: [] });
             attachGizmo([]);
           }
         };
 
+        const onPointerCancel = () => {
+          clickState.active = false;
+        };
+
         renderer.domElement.addEventListener("pointerdown", onPointerDown);
+        renderer.domElement.addEventListener("pointerup", onPointerUp);
+        renderer.domElement.addEventListener("pointercancel", onPointerCancel);
 
         const clock = new THREE.Clock();
         let t = 0;
@@ -434,6 +497,8 @@ export default function ScenePreview({
           cancelAnimationFrame(animationFrame);
           window.removeEventListener("resize", resize);
           renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+          renderer.domElement.removeEventListener("pointerup", onPointerUp);
+          renderer.domElement.removeEventListener("pointercancel", onPointerCancel);
           transformControls.detach();
           transformControls.dispose();
           orbitControls.dispose();
@@ -492,10 +557,11 @@ export default function ScenePreview({
         if (!inst) return;
         const [x, y, z] = asset.position;
         const [rx, ry, rz] = getLayoutRotation(asset);
+        const [sx, sy, sz] = getLayoutScale(asset);
         inst.object.position.set(x, z, y);
         inst.object.rotation.order = LAYOUT_EULER_ORDER;
         inst.object.rotation.set(rx, ry, rz, LAYOUT_EULER_ORDER);
-        inst.object.scale.setScalar(asset.scale ?? 0.2);
+        inst.object.scale.set(sx, sz, sy);
       });
       return;
     }
@@ -563,7 +629,7 @@ export default function ScenePreview({
           Estado: {status === "loading" ? "cargando escena" : status === "ready" ? "listo" : "error"}
         </p>
         <p className={styles.tip}>
-          Orbitar: click izq · Zoom: rueda · Pan: click der · Click pieza: seleccionar
+          Orbitar: click izq · Zoom: rueda · Pan: click der · Click: seleccionar · Shift+click: multiseleccion
         </p>
       </div>
     </section>

@@ -7,6 +7,7 @@ export type SceneAsset = {
   rotation?: [number, number, number];
   rotationZ?: number;
   scale?: number;
+  scale3?: [number, number, number];
 };
 
 export type SceneGroup = {
@@ -38,6 +39,11 @@ const isPosition = (value: unknown): value is [number, number, number] => {
 };
 
 const isRotation = (value: unknown): value is [number, number, number] => {
+  if (!Array.isArray(value) || value.length !== 3) return false;
+  return value.every(isFiniteNumber);
+};
+
+const isScale3 = (value: unknown): value is [number, number, number] => {
   if (!Array.isArray(value) || value.length !== 3) return false;
   return value.every(isFiniteNumber);
 };
@@ -95,6 +101,7 @@ const isValidAsset = (value: unknown): value is SceneAsset => {
   if (asset.rotation !== undefined && !isRotation(asset.rotation)) return false;
   if (asset.rotationZ !== undefined && !isFiniteNumber(asset.rotationZ)) return false;
   if (asset.scale !== undefined && !isFiniteNumber(asset.scale)) return false;
+  if (asset.scale3 !== undefined && !isScale3(asset.scale3)) return false;
 
   return true;
 };
@@ -131,7 +138,8 @@ export const sanitizeSceneLayout = (input: unknown): SceneLayout | null => {
       position: [...asset.position] as [number, number, number],
       rotation: asset.rotation ? [...asset.rotation] as [number, number, number] : undefined,
       rotationZ: asset.rotation ? undefined : asset.rotationZ,
-      scale: asset.scale,
+      scale: asset.scale3 ? undefined : asset.scale,
+      scale3: asset.scale3 ? [...asset.scale3] as [number, number, number] : undefined,
     })),
     groups: groups.map((group) => ({
       id: group.id,

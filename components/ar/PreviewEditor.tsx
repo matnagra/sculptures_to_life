@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import Image from "next/image";
 import ScenePreview from "@/components/ar/ScenePreview";
 import type { SceneAsset, SceneGroup, SceneLayout } from "@/lib/sceneLayout";
@@ -15,7 +15,16 @@ type AssetCollection = {
 };
 
 type TransformMode = "observe" | "translate" | "rotate" | "scale";
-type SelectedTarget = { kind: "asset"; index: number } | { kind: "group"; groupId: string } | null;
+type SelectedTarget =
+  | { kind: "asset"; index: number }
+  | { kind: "assets"; indices: number[] }
+  | { kind: "group"; groupId: string }
+  | null;
+type ClipboardSelection =
+  | { kind: "asset"; asset: SceneAsset }
+  | { kind: "assets"; assets: SceneAsset[] }
+  | { kind: "group"; groupId: string }
+  | null;
 
 const spawnPositionForIndex = (index: number): [number, number, number] => {
   if (index === 0) return [0, 0, 0];
@@ -30,8 +39,36 @@ const cloneLayout = (assets: SceneAsset[]): SceneAsset[] => {
     ...asset,
     position: [...asset.position] as [number, number, number],
     rotation: asset.rotation ? [...asset.rotation] as [number, number, number] : undefined,
+    scale3: asset.scale3 ? [...asset.scale3] as [number, number, number] : undefined,
   }));
 };
+
+const cloneAsset = (asset: SceneAsset): SceneAsset => ({
+  ...asset,
+  position: [...asset.position] as [number, number, number],
+  rotation: asset.rotation ? [...asset.rotation] as [number, number, number] : undefined,
+  scale3: asset.scale3 ? [...asset.scale3] as [number, number, number] : undefined,
+});
+
+const offsetAssetForPaste = (asset: SceneAsset): SceneAsset => ({
+  ...asset,
+  position: [asset.position[0] + 0.12, asset.position[1] + 0.12, asset.position[2]] as [number, number, number],
+  rotation: asset.rotation ? [...asset.rotation] as [number, number, number] : undefined,
+  scale3: asset.scale3 ? [...asset.scale3] as [number, number, number] : undefined,
+});
+
+const normalizeSelectionIndices = (indices: number[], maxLength: number): number[] =>
+  [...new Set(indices.filter((index) => Number.isInteger(index) && index >= 0 && index < maxLength))].sort((a, b) => a - b);
+
+const getAssetScale = (asset: SceneAsset): [number, number, number] => {
+  if (asset.scale3) return asset.scale3;
+  const uniform = asset.scale ?? 0.2;
+  return [uniform, uniform, uniform];
+};
+
+const radiansToDegrees = (value: number) => (value * 180) / Math.PI;
+const degreesToRadians = (value: number) => (value * Math.PI) / 180;
+const roundDegrees = (value: number) => Math.round(value * 100) / 100;
 
 const layoutSignature = (assets: SceneAsset[]): string => JSON.stringify(assets);
 const groupsSignature = (groups: SceneGroup[]): string => JSON.stringify(groups);
@@ -76,12 +113,15 @@ export default function PreviewEditor() {
   const layoutStateRef = useRef<SceneAsset[] | null>(null);
   const groupsStateRef = useRef<SceneGroup[]>([]);
   const [assetSearch, setAssetSearch] = useState("");
+  const [hoverPreview, setHoverPreview] = useState<{ src: string; label: string; x: number; y: number } | null>(null);
 
   const historyRef = useRef<SceneAsset[][]>([]);
   const historyIndexRef = useRef(-1);
   const savedSignatureRef = useRef("");
   const lastCoalesceOpRef = useRef<{ key: string; at: number } | null>(null);
+  const clipboardSelectionRef = useRef<ClipboardSelection>(null);
   const [newGroupName, setNewGroupName] = useState("");
+  const hoverPreviewTimeoutRef = useRef<number | null>(null);
 
   const syncHistoryFlags = useCallback(() => {
     setCanUndo(historyIndexRef.current > 0);
@@ -204,6 +244,14 @@ export default function PreviewEditor() {
     groupsStateRef.current = sceneGroups;
   }, [sceneGroups]);
 
+  useEffect(() => {
+    return () => {
+      if (hoverPreviewTimeoutRef.current) {
+        window.clearTimeout(hoverPreviewTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const addAsset = async (collection: AssetCollection, assetPath: string) => {
     const actionKey = `${collection.source}:${collection.name}:${assetPath}`;
     setImportingAssetKey(actionKey);
@@ -258,10 +306,20 @@ export default function PreviewEditor() {
     layoutStateRef.current = snapshot;
     setLayout(snapshot);
     setSelectedTarget((prev) => {
-      if (!prev || prev.kind !== "asset") return prev;
-      if (prev.index === index) return null;
-      if (prev.index > index) return { kind: "asset", index: prev.index - 1 };
-      return prev;
+      if (!prev) return prev;
+      if (prev.kind === "group") return prev;
+      if (prev.kind === "asset") {
+        if (prev.index === index) return null;
+        if (prev.index > index) return { kind: "asset", index: prev.index - 1 };
+        return prev;
+      }
+      const nextIndices = normalizeSelectionIndices(
+        prev.indices.map((selectedIndex) => (selectedIndex > index ? selectedIndex - 1 : selectedIndex)).filter((selectedIndex) => selectedIndex !== index),
+        next.length,
+      );
+      if (nextIndices.length === 0) return null;
+      if (nextIndices.length === 1) return { kind: "asset", index: nextIndices[0] };
+      return { kind: "assets", indices: nextIndices };
     });
     lastCoalesceOpRef.current = null;
   };
@@ -366,6 +424,9 @@ export default function PreviewEditor() {
       if (selectedTarget.index < 0 || selectedTarget.index >= layout.length) return [] as number[];
       return [selectedTarget.index];
     }
+    if (selectedTarget.kind === "assets") {
+      return normalizeSelectionIndices(selectedTarget.indices, layout.length);
+    }
     const groupIds = collectDescendantGroupIds(sceneGroups, selectedTarget.groupId);
     return layout
       .map((asset, index) => ({ asset, index }))
@@ -373,15 +434,45 @@ export default function PreviewEditor() {
       .map(({ index }) => index);
   }, [layout, sceneGroups, selectedTarget]);
 
+  const selectedAssetIndexSet = useMemo(() => new Set(selectedAssetIndices), [selectedAssetIndices]);
+
   const selectedAsset = useMemo(() => {
     if (!layout || selectedAssetIndices.length !== 1) return null;
     return layout[selectedAssetIndices[0]] ?? null;
   }, [layout, selectedAssetIndices]);
 
+  const deleteSelectedSceneObjects = useCallback(() => {
+    if (!selectedTarget) return;
+    if (selectedTarget.kind === "group") return;
+
+    const base = layoutStateRef.current ?? [];
+    const indices = normalizeSelectionIndices(selectedAssetIndices, base.length);
+    if (indices.length === 0) return;
+
+    const selectedSet = new Set(indices);
+    const next = base.filter((_, index) => !selectedSet.has(index));
+    const snapshot = commitHistorySnapshot(next);
+    layoutStateRef.current = snapshot;
+    setLayout(snapshot);
+    setSelectedTarget(null);
+    lastCoalesceOpRef.current = null;
+  }, [commitHistorySnapshot, selectedAssetIndices, selectedTarget]);
+
   useEffect(() => {
     if (!layout || !selectedTarget) return;
     if (selectedTarget.kind === "asset" && selectedTarget.index >= layout.length) {
       setSelectedTarget(null);
+    }
+    if (selectedTarget.kind === "assets") {
+      const normalized = normalizeSelectionIndices(selectedTarget.indices, layout.length);
+      if (normalized.length === 0) {
+        setSelectedTarget(null);
+        return;
+      }
+      if (normalized.length !== selectedTarget.indices.length || normalized.some((index, i) => index !== selectedTarget.indices[i])) {
+        setSelectedTarget(normalized.length === 1 ? { kind: "asset", index: normalized[0] } : { kind: "assets", indices: normalized });
+        return;
+      }
     }
     if (selectedTarget.kind === "group" && !sceneGroups.some((group) => group.id === selectedTarget.groupId)) {
       setSelectedTarget(null);
@@ -391,10 +482,31 @@ export default function PreviewEditor() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSelectedTarget(null);
+        return;
+      }
+      const isDelete = event.key === "Delete" || event.key === "Backspace";
+      if (!isDelete || !selectedTarget) return;
+      event.preventDefault();
+      deleteSelectedSceneObjects();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [deleteSelectedSceneObjects, selectedTarget]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      const meta = event.metaKey || event.ctrlKey;
       const isUndo = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z";
       const isRedo =
         (event.metaKey || event.ctrlKey) &&
         ((event.shiftKey && event.key.toLowerCase() === "z") || (!event.shiftKey && event.key.toLowerCase() === "y"));
+      const isCopy = meta && !event.shiftKey && event.key.toLowerCase() === "c";
+      const isPaste = meta && !event.shiftKey && event.key.toLowerCase() === "v";
 
       if (isUndo && canUndo) {
         event.preventDefault();
@@ -402,12 +514,18 @@ export default function PreviewEditor() {
       } else if (isRedo && canRedo) {
         event.preventDefault();
         redo();
+      } else if (isCopy && selectedTarget) {
+        event.preventDefault();
+        copySelection();
+      } else if (isPaste && clipboardSelectionRef.current) {
+        event.preventDefault();
+        pasteSelection();
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [canRedo, canUndo, redo, undo]);
+  }, [canRedo, canUndo, redo, selectedTarget, undo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleCollection = (collectionId: string) => {
     setCollapsedCollections((prev) => ({ ...prev, [collectionId]: !prev[collectionId] }));
@@ -514,12 +632,12 @@ export default function PreviewEditor() {
     const baseAssets = layoutStateRef.current ?? [];
     const copiedAssets = baseAssets
       .filter((asset) => asset.groupId && descendants.has(asset.groupId))
-      .map((asset) => ({
-        ...asset,
-        position: [...asset.position] as [number, number, number],
-        rotation: asset.rotation ? [...asset.rotation] as [number, number, number] : undefined,
-        groupId: asset.groupId ? idMap.get(asset.groupId) : undefined,
-      }));
+      .map((asset) =>
+        offsetAssetForPaste({
+          ...cloneAsset(asset),
+          groupId: asset.groupId ? idMap.get(asset.groupId) : undefined,
+        }),
+      );
     const snapshot = commitHistorySnapshot([...baseAssets, ...copiedAssets]);
     layoutStateRef.current = snapshot;
     setLayout(snapshot);
@@ -529,6 +647,97 @@ export default function PreviewEditor() {
       setSelectedTarget({ kind: "group", groupId: rootCopyId });
       setTransformMode("translate");
     }
+  };
+
+  const selectAssetIndices = useCallback(
+    (indices: number[], options?: { additive?: boolean; forceMoveMode?: boolean }) => {
+      const assets = layoutStateRef.current ?? [];
+      if (assets.length === 0) {
+        setSelectedTarget(null);
+        return;
+      }
+
+      const effectiveIndices = options?.additive
+        ? normalizeSelectionIndices(
+            selectedAssetIndices.includes(indices[0])
+              ? selectedAssetIndices.filter((selectedIndex) => selectedIndex !== indices[0])
+              : [...selectedAssetIndices, ...indices],
+            assets.length,
+          )
+        : normalizeSelectionIndices(indices, assets.length);
+
+      if (effectiveIndices.length === 0) {
+        setSelectedTarget(null);
+      } else if (effectiveIndices.length === 1) {
+        setSelectedTarget({ kind: "asset", index: effectiveIndices[0] });
+      } else {
+        setSelectedTarget({ kind: "assets", indices: effectiveIndices });
+      }
+
+      if (options?.forceMoveMode) {
+        setTransformMode("translate");
+      }
+    },
+    [selectedAssetIndices],
+  );
+
+  const copySelection = () => {
+    if (!selectedTarget) return;
+    if (selectedTarget.kind === "asset") {
+      const asset = (layoutStateRef.current ?? [])[selectedTarget.index];
+      if (!asset) return;
+      clipboardSelectionRef.current = {
+        kind: "asset",
+        asset: cloneAsset(asset),
+      };
+      return;
+    }
+    if (selectedTarget.kind === "assets") {
+      const assets = (layoutStateRef.current ?? [])
+        .filter((_, index) => selectedTarget.indices.includes(index))
+        .map((asset) => cloneAsset(asset));
+      if (assets.length === 0) return;
+      clipboardSelectionRef.current =
+        assets.length === 1
+          ? { kind: "asset", asset: assets[0] }
+          : { kind: "assets", assets };
+      return;
+    }
+    clipboardSelectionRef.current = { kind: "group", groupId: selectedTarget.groupId };
+  };
+
+  const pasteSelection = () => {
+    const clipboard = clipboardSelectionRef.current;
+    if (!clipboard) return;
+
+    if (clipboard.kind === "asset") {
+      const base = layoutStateRef.current ?? [];
+      const nextAsset = offsetAssetForPaste({
+        ...cloneAsset(clipboard.asset),
+      });
+      const next = [...base, nextAsset];
+      const snapshot = commitHistorySnapshot(next, { coalesceKey: "paste-asset" });
+      layoutStateRef.current = snapshot;
+      setLayout(snapshot);
+      setSelectedTarget({ kind: "asset", index: snapshot.length - 1 });
+      setTransformMode("translate");
+      return;
+    }
+
+    if (clipboard.kind === "assets") {
+      const base = layoutStateRef.current ?? [];
+      const pastedAssets = clipboard.assets.map((asset) => offsetAssetForPaste(cloneAsset(asset)));
+      const firstIndex = base.length;
+      const snapshot = commitHistorySnapshot([...base, ...pastedAssets], { coalesceKey: "paste-assets" });
+      layoutStateRef.current = snapshot;
+      setLayout(snapshot);
+      const nextIndices = pastedAssets.map((_, offset) => firstIndex + offset);
+      setSelectedTarget({ kind: "assets", indices: nextIndices });
+      setTransformMode("translate");
+      return;
+    }
+
+    copyGroup(clipboard.groupId);
   };
 
   const assignAssetToGroup = (index: number, groupId: string) => {
@@ -541,6 +750,8 @@ export default function PreviewEditor() {
   };
 
   const selectedRotation = selectedAsset?.rotation ?? [0, selectedAsset?.rotationZ ?? 0, 0];
+  const selectedRotationDegrees = selectedRotation.map((value) => roundDegrees(radiansToDegrees(value))) as [number, number, number];
+  const selectedScale = selectedAsset ? getAssetScale(selectedAsset) : null;
 
   const updateSelectedNumeric = (kind: "position" | "rotation" | "scale", axis: 0 | 1 | 2 | null, rawValue: string) => {
     if (!selectedAsset || selectedAssetIndices.length !== 1) return;
@@ -560,7 +771,7 @@ export default function PreviewEditor() {
 
     if (kind === "rotation" && axis !== null) {
       const base = [...selectedRotation] as [number, number, number];
-      base[axis] = parsed;
+      base[axis] = degreesToRadians(parsed);
       updateAssetAt(selectedIndex, {
         ...selectedAsset,
         rotation: base,
@@ -569,21 +780,32 @@ export default function PreviewEditor() {
       return;
     }
 
-    if (kind === "scale") {
+    if (kind === "scale" && axis !== null) {
+      const base = [...getAssetScale(selectedAsset)] as [number, number, number];
+      base[axis] = parsed;
       updateAssetAt(selectedIndex, {
         ...selectedAsset,
-        scale: parsed,
+        scale: undefined,
+        scale3: base,
       });
     }
   };
 
-  const handleSceneSelectionChange = (index: number | null) => {
-    if (index === null) {
-      setSelectedTarget(null);
-      return;
-    }
+  const rotateSelectedAxisBy90 = (axis: 0 | 1 | 2) => {
+    if (!selectedAsset || selectedAssetIndices.length !== 1) return;
+    const selectedIndex = selectedAssetIndices[0];
+    const base = [...selectedRotation] as [number, number, number];
+    base[axis] += Math.PI / 2;
+    updateAssetAt(selectedIndex, {
+      ...selectedAsset,
+      rotation: base,
+      rotationZ: undefined,
+    });
+  };
+
+  const openAssetAncestors = (assetIndex: number) => {
     const assets = layoutStateRef.current ?? [];
-    const selected = assets[index];
+    const selected = assets[assetIndex];
     const groups = groupsStateRef.current;
     const nextCollapsed: Record<string, boolean> = {};
     groups.forEach((group) => {
@@ -599,7 +821,42 @@ export default function PreviewEditor() {
       }
     }
     setCollapsedSceneGroups(nextCollapsed);
-    setSelectedTarget({ kind: "asset", index });
+  };
+
+  const handleSceneSelectionChange = ({ indices }: { indices: number[] }) => {
+    const normalized = normalizeSelectionIndices(indices, layoutStateRef.current?.length ?? 0);
+    if (normalized.length === 0) {
+      setSelectedTarget(null);
+      return;
+    }
+    openAssetAncestors(normalized[normalized.length - 1]);
+    if (normalized.length === 1) {
+      setSelectedTarget({ kind: "asset", index: normalized[0] });
+      return;
+    }
+    setSelectedTarget({ kind: "assets", indices: normalized });
+  };
+
+  const buildThumbnailUrl = (collectionId: string, collectionName: string, assetPath: string) =>
+    `/api/editor/thumbnail?collectionId=${encodeURIComponent(collectionId)}&collection=${encodeURIComponent(collectionName)}&asset=${encodeURIComponent(assetPath)}`;
+
+  const scheduleHoverPreview = (src: string, label: string, event: ReactMouseEvent<HTMLElement>) => {
+    if (hoverPreviewTimeoutRef.current) {
+      window.clearTimeout(hoverPreviewTimeoutRef.current);
+    }
+    const x = Math.min(event.clientX + 18, window.innerWidth - 320);
+    const y = Math.min(event.clientY + 18, window.innerHeight - 360);
+    hoverPreviewTimeoutRef.current = window.setTimeout(() => {
+      setHoverPreview({ src, label, x, y });
+    }, 1000);
+  };
+
+  const clearHoverPreview = () => {
+    if (hoverPreviewTimeoutRef.current) {
+      window.clearTimeout(hoverPreviewTimeoutRef.current);
+      hoverPreviewTimeoutRef.current = null;
+    }
+    setHoverPreview(null);
   };
 
   return (
@@ -656,6 +913,14 @@ export default function PreviewEditor() {
                           type="button"
                           className={styles.assetButton}
                           onClick={() => void addAsset(collection, asset)}
+                          onMouseEnter={(event) =>
+                            scheduleHoverPreview(
+                              buildThumbnailUrl(collection.thumbnailCollectionId, collection.name, asset),
+                              asset.replace(/^.*\//, ""),
+                              event,
+                            )
+                          }
+                          onMouseLeave={clearHoverPreview}
                           disabled={loading || saving || importingAssetKey !== null}
                         >
                           <Image
@@ -665,7 +930,7 @@ export default function PreviewEditor() {
                             width={44}
                             height={44}
                             unoptimized
-                            src={`/api/editor/thumbnail?collectionId=${encodeURIComponent(collection.thumbnailCollectionId)}&collection=${encodeURIComponent(collection.name)}&asset=${encodeURIComponent(asset)}`}
+                            src={buildThumbnailUrl(collection.thumbnailCollectionId, collection.name, asset)}
                           />
                           <span className={styles.assetLabel}>{asset.replace(/^.*\//, "")}</span>
                         </button>
@@ -722,7 +987,9 @@ export default function PreviewEditor() {
                           }
                           onClick={() => {
                             setSelectedTarget({ kind: "group", groupId: node.id });
-                            setTransformMode("translate");
+                            if (transformMode !== "observe") {
+                              setTransformMode("translate");
+                            }
                           }}
                           title="Seleccionar grupo"
                         >
@@ -762,7 +1029,18 @@ export default function PreviewEditor() {
                           {nodeAssets.length > 0 ? (
                             <div className={styles.assetList}>
                               {nodeAssets.map(({ index, asset }) => (
-                                <div key={`${asset.collection}/${asset.file}:${index}`} className={styles.sceneAssetCard}>
+                                <div
+                                  key={`${asset.collection}/${asset.file}:${index}`}
+                                  className={styles.sceneAssetCard}
+                                  onMouseEnter={(event) =>
+                                    scheduleHoverPreview(
+                                      buildThumbnailUrl(asset.collection, asset.sourceCollection ?? asset.collection, asset.file),
+                                      asset.file.replace(/^.*\//, ""),
+                                      event,
+                                    )
+                                  }
+                                  onMouseLeave={clearHoverPreview}
+                                >
                                   <Image
                                     className={styles.assetThumb}
                                     alt={asset.file}
@@ -770,15 +1048,26 @@ export default function PreviewEditor() {
                                     width={44}
                                     height={44}
                                     unoptimized
-                                    src={`/api/editor/thumbnail?collectionId=${encodeURIComponent(asset.collection)}&collection=${encodeURIComponent(asset.sourceCollection ?? asset.collection)}&asset=${encodeURIComponent(asset.file)}`}
+                                    src={buildThumbnailUrl(asset.collection, asset.sourceCollection ?? asset.collection, asset.file)}
                                   />
                                   <button
                                     type="button"
-                                    className={selectedTarget?.kind === "asset" && selectedTarget.index === index ? styles.sceneAssetLabelActive : styles.sceneAssetLabel}
-                                    onClick={() => {
-                                      setSelectedTarget({ kind: "asset", index });
-                                      setTransformMode("translate");
+                                    className={selectedAssetIndexSet.has(index) ? styles.sceneAssetLabelActive : styles.sceneAssetLabel}
+                                    onClick={(event) => {
+                                      openAssetAncestors(index);
+                                      selectAssetIndices([index], {
+                                        additive: event.shiftKey,
+                                        forceMoveMode: transformMode !== "observe" && !event.shiftKey,
+                                      });
                                     }}
+                                    onMouseEnter={(event) =>
+                                      scheduleHoverPreview(
+                                        buildThumbnailUrl(asset.collection, asset.sourceCollection ?? asset.collection, asset.file),
+                                        asset.file.replace(/^.*\//, ""),
+                                        event,
+                                      )
+                                    }
+                                    onMouseLeave={clearHoverPreview}
                                   >
                                     {asset.file.replace(/^.*\//, "")}
                                   </button>
@@ -815,7 +1104,18 @@ export default function PreviewEditor() {
                   <p className={styles.collectionName}>Sin grupo - {ungroupedAssets.length}</p>
                   <div className={styles.assetList}>
                     {ungroupedAssets.map(({ index, asset }) => (
-                      <div key={`${asset.collection}/${asset.file}:${index}`} className={styles.sceneAssetCard}>
+                      <div
+                        key={`${asset.collection}/${asset.file}:${index}`}
+                        className={styles.sceneAssetCard}
+                        onMouseEnter={(event) =>
+                          scheduleHoverPreview(
+                            buildThumbnailUrl(asset.collection, asset.sourceCollection ?? asset.collection, asset.file),
+                            asset.file.replace(/^.*\//, ""),
+                            event,
+                          )
+                        }
+                        onMouseLeave={clearHoverPreview}
+                      >
                         <Image
                           className={styles.assetThumb}
                           alt={asset.file}
@@ -823,15 +1123,26 @@ export default function PreviewEditor() {
                           width={44}
                           height={44}
                           unoptimized
-                          src={`/api/editor/thumbnail?collectionId=${encodeURIComponent(asset.collection)}&collection=${encodeURIComponent(asset.sourceCollection ?? asset.collection)}&asset=${encodeURIComponent(asset.file)}`}
+                          src={buildThumbnailUrl(asset.collection, asset.sourceCollection ?? asset.collection, asset.file)}
                         />
                         <button
                           type="button"
-                          className={selectedTarget?.kind === "asset" && selectedTarget.index === index ? styles.sceneAssetLabelActive : styles.sceneAssetLabel}
-                          onClick={() => {
-                            setSelectedTarget({ kind: "asset", index });
-                            setTransformMode("translate");
+                          className={selectedAssetIndexSet.has(index) ? styles.sceneAssetLabelActive : styles.sceneAssetLabel}
+                          onClick={(event) => {
+                            openAssetAncestors(index);
+                            selectAssetIndices([index], {
+                              additive: event.shiftKey,
+                              forceMoveMode: transformMode !== "observe" && !event.shiftKey,
+                            });
                           }}
+                          onMouseEnter={(event) =>
+                            scheduleHoverPreview(
+                              buildThumbnailUrl(asset.collection, asset.sourceCollection ?? asset.collection, asset.file),
+                              asset.file.replace(/^.*\//, ""),
+                              event,
+                            )
+                          }
+                          onMouseLeave={clearHoverPreview}
                         >
                           {asset.file.replace(/^.*\//, "")}
                         </button>
@@ -861,6 +1172,23 @@ export default function PreviewEditor() {
       </aside>
 
       <div className={styles.previewArea}>
+        {hoverPreview ? (
+          <div
+            className={styles.assetHoverPreview}
+            style={{ left: hoverPreview.x, top: hoverPreview.y }}
+            onMouseLeave={clearHoverPreview}
+          >
+            <Image
+              className={styles.assetHoverPreviewImage}
+              alt={hoverPreview.label}
+              src={hoverPreview.src}
+              width={288}
+              height={288}
+              unoptimized
+            />
+            <p className={styles.assetHoverPreviewLabel}>{hoverPreview.label}</p>
+          </div>
+        ) : null}
         <div className={styles.previewTopRightTools}>
           <span className={styles.transformTitle}>Modo</span>
           <div className={styles.transformButtons}>
@@ -936,54 +1264,85 @@ export default function PreviewEditor() {
             ) : null}
             {transformMode === "rotate" ? (
               <div className={styles.paramRows}>
-                <label className={styles.paramRow}>
+                <div className={styles.paramRow}>
                   <span className={styles.paramLabel}>Rot X</span>
                   <input
                     className={styles.paramInput}
                     type="number"
-                    step="0.01"
-                    value={selectedRotation[0]}
+                    step="1"
+                    value={selectedRotationDegrees[0]}
                     onChange={(event) => updateSelectedNumeric("rotation", 0, event.target.value)}
                   />
-                </label>
-                <label className={styles.paramRow}>
+                  <button type="button" className={styles.axisStepButton} onClick={() => rotateSelectedAxisBy90(0)}>
+                    +90°
+                  </button>
+                </div>
+                <div className={styles.paramRow}>
                   <span className={styles.paramLabel}>Rot Y</span>
                   <input
                     className={styles.paramInput}
                     type="number"
-                    step="0.01"
-                    value={selectedRotation[1]}
+                    step="1"
+                    value={selectedRotationDegrees[1]}
                     onChange={(event) => updateSelectedNumeric("rotation", 1, event.target.value)}
                   />
-                </label>
-                <label className={styles.paramRow}>
+                  <button type="button" className={styles.axisStepButton} onClick={() => rotateSelectedAxisBy90(1)}>
+                    +90°
+                  </button>
+                </div>
+                <div className={styles.paramRow}>
                   <span className={styles.paramLabel}>Rot Z</span>
                   <input
                     className={styles.paramInput}
                     type="number"
-                    step="0.01"
-                    value={selectedRotation[2]}
+                    step="1"
+                    value={selectedRotationDegrees[2]}
                     onChange={(event) => updateSelectedNumeric("rotation", 2, event.target.value)}
                   />
-                </label>
+                  <button type="button" className={styles.axisStepButton} onClick={() => rotateSelectedAxisBy90(2)}>
+                    +90°
+                  </button>
+                </div>
               </div>
             ) : null}
             {transformMode === "scale" ? (
               <div className={styles.paramRows}>
                 <label className={styles.paramRow}>
-                  <span className={styles.paramLabel}>Escala</span>
+                  <span className={styles.paramLabel}>Esc X</span>
                   <input
                     className={styles.paramInput}
                     type="number"
                     step="0.01"
                     min="0.001"
-                    value={selectedAsset.scale ?? 0.2}
-                    onChange={(event) => updateSelectedNumeric("scale", null, event.target.value)}
+                    value={selectedScale?.[0] ?? 0.2}
+                    onChange={(event) => updateSelectedNumeric("scale", 0, event.target.value)}
+                  />
+                </label>
+                <label className={styles.paramRow}>
+                  <span className={styles.paramLabel}>Esc Y</span>
+                  <input
+                    className={styles.paramInput}
+                    type="number"
+                    step="0.01"
+                    min="0.001"
+                    value={selectedScale?.[1] ?? 0.2}
+                    onChange={(event) => updateSelectedNumeric("scale", 1, event.target.value)}
+                  />
+                </label>
+                <label className={styles.paramRow}>
+                  <span className={styles.paramLabel}>Esc Z</span>
+                  <input
+                    className={styles.paramInput}
+                    type="number"
+                    step="0.01"
+                    min="0.001"
+                    value={selectedScale?.[2] ?? 0.2}
+                    onChange={(event) => updateSelectedNumeric("scale", 2, event.target.value)}
                   />
                 </label>
               </div>
             ) : null}
-            <p className={styles.previewBottomValues}>Valores en unidades de escena (rotacion en radianes).</p>
+            <p className={styles.previewBottomValues}>Valores en unidades de escena (rotacion en grados).</p>
           </div>
         ) : null}
 
