@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import { createAnchoredScene, fromThreePosition, fromThreeRotation, fromThreeScale, getLayoutRotation, getLayoutScale, LAYOUT_EULER_ORDER } from "@/components/ar/createScene";
+import { createAnchoredScene, fromThreePosition, fromThreeRotation, fromThreeScale } from "@/components/ar/createScene";
 import type { SceneAsset } from "@/lib/sceneLayout";
 import styles from "@/components/ar/ScenePreview.module.css";
 
@@ -363,7 +363,7 @@ export default function ScenePreview({
         anchorPreview.add(targetMesh);
         scene.add(anchorPreview);
 
-        const anchored = await createAnchoredScene({ layout: layoutRef.current });
+        const anchored = await createAnchoredScene({ layout: layoutRef.current, assetSource: "editor" });
         if (disposed) { anchored.dispose(); return; }
         anchoredRef.current = anchored;
         loadedAssetKeysRef.current = getStructuralKey(layoutRef.current);
@@ -533,56 +533,36 @@ export default function ScenePreview({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tracks which assets are loaded (collection+file), to detect structural changes.
+  // Tracks which assets are loaded (collection+file), to surface heavier syncs.
   const loadedAssetKeysRef = useRef<string>("");
 
-  // --- layout changes: replace anchored content --------------------------
+  // --- layout changes: sync anchored content -----------------------------
   // This effect depends on `ready` (actual state), so it re-runs when the
   // engine finishes booting AND whenever layout changes afterwards.
 
   useEffect(() => {
     if (!ready || !engineRef.current) return;
-    const engine = engineRef.current;
+    const anchored = anchoredRef.current;
+    if (!anchored) return;
 
     const nextKey = getStructuralKey(layout);
-    const anchored = anchoredRef.current;
+    const structureChanged = nextKey !== loadedAssetKeysRef.current;
 
-    // If same assets, just update transforms in-place — no rebuild needed.
-    // Never touch the selected object: TransformControls owns its transform.
-    if (nextKey === loadedAssetKeysRef.current && anchored) {
-      const selectedSet = new Set(selectedAssetIndicesRef.current);
-      layout.forEach((asset, index) => {
-        if (selectedSet.has(index) && isTransformDraggingRef.current) return; // TransformControls is managing selected objects while dragging
-        const inst = anchored.instances.find((i) => i.layoutIndex === index);
-        if (!inst) return;
-        const [x, y, z] = asset.position;
-        const [rx, ry, rz] = getLayoutRotation(asset);
-        const [sx, sy, sz] = getLayoutScale(asset);
-        inst.object.position.set(x, z, y);
-        inst.object.rotation.order = LAYOUT_EULER_ORDER;
-        inst.object.rotation.set(rx, ry, rz, LAYOUT_EULER_ORDER);
-        inst.object.scale.set(sx, sz, sy);
-      });
-      return;
-    }
-
-    // Assets added/removed: full rebuild.
     let cancelled = false;
-    const load = async () => {
+    const sync = async () => {
       try {
-        const next = await createAnchoredScene({ layout });
-        if (cancelled || !engineRef.current) { next.dispose(); return; }
-
-        const old = anchoredRef.current;
-        if (old) {
-          engine.anchorPreview.remove(old.root);
-          old.dispose();
+        if (structureChanged) {
+          setStatus("loading");
         }
-        anchoredRef.current = next;
+        const skipTransformIndices = isTransformDraggingRef.current
+          ? new Set(selectedAssetIndicesRef.current)
+          : undefined;
+        await anchored.syncLayout(layout, { skipTransformIndices });
+        if (cancelled || !engineRef.current) return;
         loadedAssetKeysRef.current = nextKey;
-        engine.anchorPreview.add(next.root);
-
-        attachGizmo(selectedAssetIndicesRef.current);
+        if (!isTransformDraggingRef.current) {
+          attachGizmo(selectedAssetIndicesRef.current);
+        }
         setStatus("ready");
       } catch (err) {
         console.error("ScenePreview layout sync error", err);
@@ -590,7 +570,7 @@ export default function ScenePreview({
       }
     };
 
-    void load();
+    void sync();
     return () => { cancelled = true; };
   }, [layout, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -1,44 +1,1462 @@
 {
   "assets": [
     {
-      "collection": "fantasy-props-megakit-standard",
-      "file": "glTF/Bed_Twin1.gltf",
-      "sourceCollection": "Fantasy Props MegaKit[Standard]",
-      "groupId": "grp_f7tfnnlg",
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Door_Round.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
       "position": [
-        0.48,
-        -0.48,
-        1.125432802742751
+        2.7755575615628914e-17,
+        0.13784084128319884,
+        0.19021161974258405
       ],
       "rotation": [
         0,
         0,
         0
       ],
-      "scale": 0.2
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
     },
     {
-      "collection": "fantasy-props-megakit-standard",
-      "file": "glTF/Bed_Twin1.gltf",
-      "sourceCollection": "Fantasy Props MegaKit[Standard]",
-      "groupId": "grp_f7tfnnlg",
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
       "position": [
-        -0.48,
-        -0.16,
-        1.125432802742751
+        -0.4,
+        0.1378408412831989,
+        0.19021161974258405
       ],
       "rotation": [
         0,
         0,
         0
       ],
-      "scale": 0.2
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Window_Wide_Round.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        -0.6112882044729268,
+        -0.4815118508163132,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        -1.6062260402404374,
+        0
+      ],
+      "scale3": [
+        0.19999999999999996,
+        0.19999999999999996,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        0.4,
+        0.13784084128319884,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        0.8000127090887209,
+        0.13784084128319884,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Corner_Interior_Small.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        0.9613283100678225,
+        0.1759563089489934,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        1.0273407177091385,
+        -0.11131382721992597,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        1.5743518564456478,
+        0
+      ],
+      "scale3": [
+        0.20000000000000007,
+        0.20000000000000007,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        1.0260613168345392,
+        -0.5029701977822905,
+        0.1923971530705635
+      ],
+      "rotation": [
+        0,
+        1.5743518564456478,
+        0
+      ],
+      "scale3": [
+        0.20000000000000007,
+        0.20000000000000007,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        1.026117590630065,
+        -0.893783010458958,
+        0.19209053592001607
+      ],
+      "rotation": [
+        0,
+        1.5743518564456478,
+        0
+      ],
+      "scale3": [
+        0.20000000000000007,
+        0.20000000000000007,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Corner_Interior_Small.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        0.9576290164326222,
+        -1.0593876311537933,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Door_Round.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        0.4174898043009164,
+        -1.1316406601297642,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        -3.140834136343538,
+        0
+      ],
+      "scale3": [
+        0.20000000000000184,
+        0.20000000000000184,
+        0.20000000000000184
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        0.8174896892312407,
+        -1.1319440669991723,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        -3.140834136343538,
+        0
+      ],
+      "scale3": [
+        0.20000000000000184,
+        0.20000000000000184,
+        0.20000000000000184
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        0.017489919370592605,
+        -1.1313372532603565,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        -3.140834136343538,
+        0
+      ],
+      "scale3": [
+        0.20000000000000184,
+        0.20000000000000184,
+        0.20000000000000184
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        -0.3825226746447966,
+        -1.1310338367508863,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        -3.140834136343538,
+        0
+      ],
+      "scale3": [
+        0.20000000000000184,
+        0.20000000000000184,
+        0.20000000000000184
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Corner_Interior_Small.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        -0.5378054893438512,
+        -1.1680972296828855,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        3.1259458376785676,
+        0
+      ],
+      "scale3": [
+        0.20000000000000023,
+        0.20000000000000023,
+        0.20000000000000023
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        -0.6083044960093495,
+        -0.8818950997881368,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        -1.5828876130553702,
+        0
+      ],
+      "scale3": [
+        0.19999999999999987,
+        0.19999999999999987,
+        0.20000000000000018
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        -0.6193241703572178,
+        -0.0995025604986331,
+        0.19209053592001607
+      ],
+      "rotation": [
+        0,
+        -1.5828876130553702,
+        0
+      ],
+      "scale3": [
+        0.19999999999999987,
+        0.19999999999999987,
+        0.20000000000000018
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Corner_Interior_Small.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        -0.553435059057771,
+        0.0671533730988482,
+        0.19021161974258405
+      ],
+      "rotation": [
+        0,
+        3.1259458376785676,
+        0
+      ],
+      "scale3": [
+        0.20000000000000023,
+        0.20000000000000023,
+        0.20000000000000023
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Roof_RoundTiles_8x10.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_qrdbubeq",
+      "position": [
+        0.19333920373041721,
+        -0.48723753935325376,
+        0.8567411608034945
+      ],
+      "rotation": [
+        0,
+        1.5804516083800557,
+        0
+      ],
+      "scale3": [
+        0.14125185559886172,
+        0.1530237907589214,
+        0.07004714677769229
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_PlatformU.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        -0.42766882715573484,
+        -0.05035017103011255,
+        0
+      ],
+      "rotation": [
+        0,
+        1.5707963267948963,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        -0.023892374909898907,
+        -0.05633511486351925,
+        0
+      ],
+      "rotation": [
+        0,
+        1.5707963267948963,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.36983947066854195,
+        -0.054942147996701024,
+        0
+      ],
+      "rotation": [
+        0,
+        1.5707963267948963,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_PlatformU.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.8448525079612033,
+        -0.0462361108996347,
+        0
+      ],
+      "rotation": [
+        0,
+        3.141592653589793,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.5061657349006063,
+        -0.04958571406402834,
+        0
+      ],
+      "rotation": [
+        0,
+        1.5707963267948963,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_PlatformU.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.8320884877732033,
+        -0.9296444460463332,
+        0
+      ],
+      "rotation": [
+        0,
+        -1.5686120772831307,
+        0
+      ],
+      "scale3": [
+        0.20000000000000112,
+        0.20000000000000112,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.47085832348262757,
+        -0.9227775686724476,
+        0
+      ],
+      "rotation": [
+        0,
+        -1.5686120772831307,
+        0
+      ],
+      "scale3": [
+        0.20000000000000112,
+        0.20000000000000112,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_PlatformU.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        -0.3979065457488077,
+        -0.930978994468035,
+        0
+      ],
+      "rotation": [
+        0,
+        0.0021842495117676,
+        0
+      ],
+      "scale3": [
+        0.2000000000000008,
+        0.2000000000000008,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        -0.05921326425277061,
+        -0.9283691751244872,
+        0
+      ],
+      "rotation": [
+        0,
+        -1.5686120772831307,
+        0
+      ],
+      "scale3": [
+        0.20000000000000112,
+        0.20000000000000112,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.25807596750981965,
+        -0.9242417306842586,
+        0
+      ],
+      "rotation": [
+        0,
+        -1.5686120772831307,
+        0
+      ],
+      "scale3": [
+        0.20000000000000112,
+        0.20000000000000112,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.8421577176953283,
+        -0.3833665120248305,
+        0
+      ],
+      "rotation": [
+        0,
+        -3.139408404078028,
+        0
+      ],
+      "scale3": [
+        0.20000000000000098,
+        0.20000000000000098,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.834075327223551,
+        -0.6633741765488199,
+        0
+      ],
+      "rotation": [
+        0,
+        -3.139408404078028,
+        0
+      ],
+      "scale3": [
+        0.20000000000000098,
+        0.20000000000000098,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        -0.41531926337648173,
+        -0.5433741765488196,
+        0
+      ],
+      "rotation": [
+        0,
+        -0.007958027351983487,
+        0
+      ],
+      "scale3": [
+        0.20000000000000112,
+        0.20000000000000112,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        -0.4136732744735402,
+        -0.4233741765488196,
+        0
+      ],
+      "rotation": [
+        0,
+        -0.007958027351983487,
+        0
+      ],
+      "scale3": [
+        0.20000000000000112,
+        0.20000000000000112,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_Straight.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_jk6h25n8",
+      "position": [
+        0.019523840117814266,
+        0.3454447883179611,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale3": [
+        0.2,
+        0.2,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Door_Round.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        0.8412408977118653,
+        1.9752458699733255,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        -2.358778971927603,
+        0
+      ],
+      "scale3": [
+        0.20000000000000057,
+        0.20000000000000057,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.1248136665671284,
+        1.693135103139162,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        -2.358778971927603,
+        0
+      ],
+      "scale3": [
+        0.20000000000000057,
+        0.20000000000000057,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Window_Wide_Round.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.7114177767617385,
+        1.983197304163534,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        2.3181802950115413,
+        0
+      ],
+      "scale3": [
+        0.2000000000000012,
+        0.2000000000000012,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        0.5576681288565996,
+        2.2573566368074887,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        -2.358778971927603,
+        0
+      ],
+      "scale3": [
+        0.20000000000000057,
+        0.20000000000000057,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        0.2740863501226386,
+        2.5394763670685654,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        -2.358778971927603,
+        0
+      ],
+      "scale3": [
+        0.20000000000000057,
+        0.20000000000000057,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Corner_Interior_Small.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        0.13284261152105403,
+        2.6262272650493794,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        -2.358778971927603,
+        0
+      ],
+      "scale3": [
+        0.20000000000000057,
+        0.20000000000000057,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        0.2886493044948488,
+        2.876439262207154,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        -0.7844271154819616,
+        0
+      ],
+      "scale3": [
+        0.20000000000000095,
+        0.20000000000000095,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        0.5657825102031494,
+        3.1531946339030315,
+        0.19239715307056277
+      ],
+      "rotation": [
+        0,
+        -0.7844271154819616,
+        0
+      ],
+      "scale3": [
+        0.20000000000000095,
+        0.20000000000000095,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        0.8413738715952006,
+        3.4302940009991447,
+        0.19209053592001535
+      ],
+      "rotation": [
+        0,
+        -0.7844271154819616,
+        0
+      ],
+      "scale3": [
+        0.20000000000000095,
+        0.20000000000000095,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Corner_Interior_Small.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.0067247244842468,
+        3.4993929925977474,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        -2.358778971927603,
+        0
+      ],
+      "scale3": [
+        0.20000000000000057,
+        0.20000000000000057,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Door_Round.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.4406050478892258,
+        3.1696677529807977,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        0.7835721989084407,
+        0
+      ],
+      "scale3": [
+        0.20000000000000284,
+        0.20000000000000284,
+        0.20000000000000184
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.1572463464720064,
+        3.4519935334740963,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        0.7835721989084407,
+        0
+      ],
+      "scale3": [
+        0.20000000000000284,
+        0.20000000000000284,
+        0.20000000000000184
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.7239637493064377,
+        2.887341972487499,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        0.7835721989084407,
+        0
+      ],
+      "scale3": [
+        0.20000000000000284,
+        0.20000000000000284,
+        0.20000000000000184
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        2.00733145380085,
+        2.6050072217357223,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        0.7835721989084407,
+        0
+      ],
+      "scale3": [
+        0.20000000000000284,
+        0.20000000000000284,
+        0.20000000000000184
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Corner_Interior_Small.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        2.1435563536042883,
+        2.521765259300671,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        0.76716686575097,
+        0
+      ],
+      "scale3": [
+        0.2000000000000012,
+        0.2000000000000012,
+        0.20000000000000023
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.9916835940730382,
+        2.269146111155725,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        2.3415187221966085,
+        0
+      ],
+      "scale3": [
+        0.2000000000000009,
+        0.2000000000000009,
+        0.20000000000000018
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Wall_Plaster_Straight_Base.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.4476923949290825,
+        1.7067111424593107,
+        0.19209053592001535
+      ],
+      "rotation": [
+        0,
+        2.3415187221966085,
+        0
+      ],
+      "scale3": [
+        0.2000000000000009,
+        0.2000000000000009,
+        0.20000000000000018
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Corner_Interior_Small.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.28344291754597,
+        1.6350335004050884,
+        0.19021161974258333
+      ],
+      "rotation": [
+        0,
+        0.76716686575097,
+        0
+      ],
+      "scale3": [
+        0.2000000000000012,
+        0.2000000000000012,
+        0.20000000000000023
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Roof_RoundTiles_8x10.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_0ez1xxpy",
+      "position": [
+        1.1450299176186167,
+        2.554741565403674,
+        0.8567411608034945
+      ],
+      "rotation": [
+        0,
+        -0.7783273635475528,
+        0
+      ],
+      "scale3": [
+        0.14125185559886208,
+        0.15302379075892214,
+        0.07004714677769229
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_PlatformU.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        1.2771557583734683,
+        1.8070355341117965,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        -0.7879826451327094,
+        0
+      ],
+      "scale3": [
+        0.20000000000000065,
+        0.20000000000000065,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        0.9951267847044547,
+        2.096052663279132,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        -0.7879826451327094,
+        0
+      ],
+      "scale3": [
+        0.20000000000000065,
+        0.20000000000000065,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        0.7150152832340928,
+        2.37275512680867,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        -0.7879826451327094,
+        0
+      ],
+      "scale3": [
+        0.20000000000000065,
+        0.20000000000000065,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_PlatformU.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        0.3721232106616704,
+        2.701598869712389,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        0.7828136816621903,
+        0
+      ],
+      "scale3": [
+        0.20000000000000112,
+        0.20000000000000112,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        0.6145914734835365,
+        2.465105547160339,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        -0.7879826451327094,
+        0
+      ],
+      "scale3": [
+        0.20000000000000065,
+        0.20000000000000065,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_PlatformU.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        1.0042195391675823,
+        3.3188730699730002,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        2.3557942579688453,
+        0
+      ],
+      "scale3": [
+        0.2000000000000026,
+        0.2000000000000026,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        1.2554640837681212,
+        3.0592376247681323,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        2.3557942579688453,
+        0
+      ],
+      "scale3": [
+        0.2000000000000026,
+        0.2000000000000026,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_PlatformU.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        1.8771435086992891,
+        2.4523320686780186,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        -2.3565947224158443,
+        0
+      ],
+      "scale3": [
+        0.2000000000000021,
+        0.2000000000000021,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        1.6351923842922538,
+        2.689354437845426,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        2.3557942579688453,
+        0
+      ],
+      "scale3": [
+        0.2000000000000026,
+        0.2000000000000026,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        1.4073449280548138,
+        2.9102051319268174,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        2.3557942579688453,
+        0
+      ],
+      "scale3": [
+        0.2000000000000026,
+        0.2000000000000026,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        0.6118039234659634,
+        2.9387007996223753,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        0.7849979311739502,
+        0
+      ],
+      "scale3": [
+        0.2000000000000018,
+        0.2000000000000018,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        0.8150167304743561,
+        3.1315068480121706,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        0.7849979311739502,
+        0
+      ],
+      "scale3": [
+        0.2000000000000018,
+        0.2000000000000018,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        1.616119209047206,
+        2.16526585227401,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        -2.366736999279593,
+        0
+      ],
+      "scale3": [
+        0.20000000000000237,
+        0.20000000000000237,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_SidePlatform.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        1.5303190849201784,
+        2.0813548995964544,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        -2.366736999279593,
+        0
+      ],
+      "scale3": [
+        0.20000000000000237,
+        0.20000000000000237,
+        0.2
+      ]
+    },
+    {
+      "collection": "medieval-village-megakit-standard",
+      "file": "glTF/Stairs_Exterior_Straight.gltf",
+      "sourceCollection": "Medieval Village MegaKit[Standard]",
+      "groupId": "grp_wnm9tgjf",
+      "position": [
+        0.6809815524701812,
+        1.8418385185264643,
+        -7.216449660063518e-16
+      ],
+      "rotation": [
+        0,
+        -2.358778971927603,
+        0
+      ],
+      "scale3": [
+        0.20000000000000057,
+        0.20000000000000057,
+        0.2
+      ]
     }
   ],
   "groups": [
     {
-      "id": "grp_f7tfnnlg",
-      "name": "camas"
+      "id": "grp_qrdbubeq",
+      "name": "Casa",
+      "parentId": "grp_bcb077ig"
+    },
+    {
+      "id": "grp_jk6h25n8",
+      "name": "radier",
+      "parentId": "grp_bcb077ig"
+    },
+    {
+      "id": "grp_bcb077ig",
+      "name": "Casa completa 1"
+    },
+    {
+      "id": "grp_0ez1xxpy",
+      "name": "Casa (copia)",
+      "parentId": "grp_cq21ixfj"
+    },
+    {
+      "id": "grp_wnm9tgjf",
+      "name": "radier (copia)",
+      "parentId": "grp_cq21ixfj"
+    },
+    {
+      "id": "grp_cq21ixfj",
+      "name": "Casa completa 2"
     }
   ]
 }

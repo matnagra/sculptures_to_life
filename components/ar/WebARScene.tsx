@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { createAnchoredScene } from "@/components/ar/createScene";
+import { createAnchoredScene, type SceneLoadProgress } from "@/components/ar/createScene";
+import type { SceneLayout } from "@/lib/sceneLayout";
 import styles from "@/components/ar/WebARScene.module.css";
 
 type ARStatus = "loading" | "running" | "error";
@@ -87,13 +88,36 @@ const cleanupContainer = (container: HTMLElement | null) => {
   }
 };
 
+const loadSavedLayout = async () => {
+  const response = await fetch("/api/editor/layout", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("No se pudo leer el layout guardado");
+  }
+  const layout = (await response.json()) as SceneLayout;
+  return layout.assets;
+};
+
 export default function WebARScene() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<ARStatus>("loading");
   const [targetFound, setTargetFound] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const [loadProgress, setLoadProgress] = useState<SceneLoadProgress>({
+    phase: "models",
+    loaded: 0,
+    total: 0,
+    unit: "models",
+  });
   const [reloadToken, setReloadToken] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const progressRatio = loadProgress.total > 0 ? loadProgress.loaded / loadProgress.total : 0;
+  const progressPercent =
+    status === "loading"
+      ? 8
+      : loadProgress.phase === "models"
+        ? Math.round(progressRatio * 80)
+        : Math.round(80 + progressRatio * 20);
 
   useEffect(() => {
     if (!hasStarted) return;
@@ -110,10 +134,12 @@ export default function WebARScene() {
 
       setStatus("loading");
       setTargetFound(false);
+      setSceneReady(false);
+      setLoadProgress({ phase: "models", loaded: 0, total: 0, unit: "models" });
       setErrorMessage(null);
 
       try {
-        await loadMindARScript();
+        const [, layout] = await Promise.all([loadMindARScript(), loadSavedLayout()]);
         const MindARThree = (window as MindARWindow).MINDAR?.IMAGE?.MindARThree;
         if (!MindARThree) {
           throw new Error("MindAR global is unavailable");
@@ -130,16 +156,10 @@ export default function WebARScene() {
         const { renderer, scene, camera } = mindar;
         renderer.setClearColor(0x000000, 0);
         renderer.outputEncoding = THREE.sRGBEncoding;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(1);
 
         const anchor = mindar.addAnchor(0);
-        const anchoredScene = await createAnchoredScene();
-        // Align content with the tracked image plane (instead of popping out perpendicular).
-        anchoredScene.root.rotation.x = Math.PI / 2;
-        // Target image is portrait-oriented; rotate 90deg on the anchor plane so X follows width.
-        anchoredScene.root.rotation.y = Math.PI / 2;
-        anchoredScene.root.position.z = 0.001;
-        anchor.group.add(anchoredScene.root);
+        let anchoredScene: Awaited<ReturnType<typeof createAnchoredScene>> | null = null;
 
         anchor.onTargetFound = () => {
           setTargetFound(true);
@@ -148,11 +168,8 @@ export default function WebARScene() {
           setTargetFound(false);
         };
 
-        const clock = new THREE.Clock();
-
         await mindar.start();
         if (disposed) {
-          anchoredScene.dispose();
           try {
             mindar.stop();
           } catch {
@@ -162,16 +179,52 @@ export default function WebARScene() {
           return;
         }
 
+        const clock = new THREE.Clock();
         setStatus("running");
         renderer.setAnimationLoop(() => {
           const delta = clock.getDelta();
-          anchoredScene.update(delta);
+          anchoredScene?.update(delta);
           renderer.render(scene, camera);
         });
 
+        void createAnchoredScene({
+          layout,
+          quality: "mobile",
+          showHelpers: false,
+          assetSource: "public",
+          onProgress: (progress) => {
+            if (disposed) return;
+            setLoadProgress(progress);
+          },
+        })
+          .then((nextScene) => {
+            if (disposed) {
+              nextScene.dispose();
+              return;
+            }
+            anchoredScene = nextScene;
+            // Align content with the tracked image plane (instead of popping out perpendicular).
+            anchoredScene.root.rotation.x = Math.PI / 2;
+            // Target image is portrait-oriented; rotate 90deg on the anchor plane so X follows width.
+            anchoredScene.root.rotation.y = Math.PI / 2;
+            anchoredScene.root.position.z = 0.001;
+            anchor.group.add(anchoredScene.root);
+            setLoadProgress({ phase: "instances", loaded: layout.length, total: layout.length, unit: "instances" });
+            setSceneReady(true);
+          })
+          .catch((sceneError) => {
+            console.error("Error loading AR scene", sceneError);
+            setErrorMessage("La camara inicio, pero la escena 3D no se pudo cargar.");
+          });
+
         clearScene = () => {
           renderer.setAnimationLoop(null);
-          anchoredScene.dispose();
+          setSceneReady(false);
+          if (anchoredScene) {
+            anchor.group.remove(anchoredScene.root);
+            anchoredScene.dispose();
+            anchoredScene = null;
+          }
         };
       } catch (error) {
         console.error("Error starting WebAR scene", error);
@@ -203,7 +256,30 @@ export default function WebARScene() {
 
   return (
     <section className={styles.wrapper}>
-      <div className={styles.arCanvas} ref={containerRef} />
+      <div className={`${styles.arCanvas} ${!sceneReady ? styles.arCanvasHidden : ""}`.trim()} ref={containerRef} />
+
+      {hasStarted && !sceneReady ? (
+        <div className={styles.loadingScreen}>
+          <div className={styles.loadingCard}>
+            <p className={styles.loadingTitle}>
+              {status === "loading"
+                ? "Iniciando camara"
+                : loadProgress.phase === "models"
+                  ? "Cargando modelos base"
+                  : "Armando escena"}
+            </p>
+            <p className={styles.loadingMeta}>
+              {loadProgress.total > 0
+                ? `${loadProgress.loaded} / ${loadProgress.total} ${loadProgress.unit}`
+                : "Preparando escena para AR"}
+            </p>
+            <div className={styles.progressTrack} aria-hidden="true">
+              <div className={styles.progressBar} style={{ width: `${progressPercent}%` }} />
+            </div>
+            <p className={styles.loadingMeta}>{progressPercent}%</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.overlay}>
         {!hasStarted ? (
@@ -212,6 +288,7 @@ export default function WebARScene() {
             className={styles.retry}
             onClick={() => {
               setStatus("loading");
+              setLoadProgress({ phase: "models", loaded: 0, total: 0, unit: "models" });
               setErrorMessage(null);
               setHasStarted(true);
             }}
@@ -227,9 +304,11 @@ export default function WebARScene() {
             : status === "loading"
             ? "iniciando camara"
             : status === "running"
-              ? targetFound
-                ? "target detectado"
-                : "apunta al target"
+              ? !sceneReady
+                ? "cargando escena"
+                : targetFound
+                  ? "target detectado"
+                  : "apunta al target"
               : "error"}
         </p>
 
@@ -244,6 +323,7 @@ export default function WebARScene() {
           className={styles.retry}
           onClick={() => {
             setHasStarted(true);
+            setLoadProgress({ phase: "models", loaded: 0, total: 0, unit: "models" });
             setReloadToken((prev) => prev + 1);
           }}
         >

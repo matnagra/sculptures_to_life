@@ -1,5 +1,6 @@
-import { access, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import sharp from "sharp";
 import type { SceneAsset } from "@/lib/sceneLayout";
 import { sanitizeSceneLayout } from "@/lib/sceneLayout";
 
@@ -10,6 +11,13 @@ const SCENES_DIR = path.join(process.cwd(), "public/assets/scenes");
 const LAYOUT_FILE_PATH = path.join(SCENES_DIR, "house-layout.json");
 const ROOT_ASSETS_LIBRARY_DIR = path.join(process.cwd(), "assets_library");
 const PUBLIC_ASSETS_LIBRARY_DIR = path.join(process.cwd(), "public/assets/models/assets_library");
+const MOBILE_TEXTURE_MAX_SIZE = 512;
+const MOBILE_TEXTURE_QUALITY = 62;
+
+type ParsedGltf = {
+  buffers?: Array<{ uri?: string }>;
+  images?: Array<{ uri?: string }>;
+};
 
 const toPosixPath = (value: string) => value.split(path.sep).join("/");
 
@@ -38,34 +46,53 @@ const pathExists = async (filePath: string): Promise<boolean> => {
   }
 };
 
-const extractDependencyUris = (gltfJson: string): string[] => {
-  try {
-    const parsed = JSON.parse(gltfJson) as {
-      buffers?: Array<{ uri?: string }>;
-      images?: Array<{ uri?: string }>;
-    };
-    const uris = [...(parsed.buffers ?? []), ...(parsed.images ?? [])]
-      .map((entry) => entry.uri ?? "")
-      .filter((uri) => uri && !uri.startsWith("data:"));
-    return Array.from(new Set(uris));
-  } catch {
-    return [];
-  }
+const safeCollectionId = (name: string): string => {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+};
+
+const parseGltf = (gltfJson: string): ParsedGltf => {
+  return JSON.parse(gltfJson) as ParsedGltf;
+};
+
+const isOptimizableImageUri = (uri: string) => /\.(png|jpe?g|webp)$/i.test(uri);
+
+const toOptimizedImageRelativePath = (relativeFile: string) => {
+  return relativeFile.replace(/\.(png|jpe?g|webp)$/i, ".webp");
 };
 
 const copyKeepingRelativePath = async (sourceCollectionDir: string, targetCollectionDir: string, relativeFile: string) => {
   const sourceAbsolute = resolveInside(sourceCollectionDir, relativeFile);
   const targetAbsolute = resolveInside(targetCollectionDir, relativeFile);
   await mkdir(path.dirname(targetAbsolute), { recursive: true });
-  const sourceContent = await readFile(sourceAbsolute);
-  await writeFile(targetAbsolute, sourceContent);
+  await copyFile(sourceAbsolute, targetAbsolute);
 };
 
-const ensureAssetInPublicLibrary = async (asset: SceneAsset) => {
-  const targetCollectionDir = resolveInside(PUBLIC_ASSETS_LIBRARY_DIR, asset.collection);
-  const targetGltfPath = resolveInside(targetCollectionDir, asset.file);
-  if (await pathExists(targetGltfPath)) return;
+const optimizeImageIntoPublicLibrary = async (
+  sourceCollectionDir: string,
+  targetCollectionDir: string,
+  relativeFile: string,
+) => {
+  const sourceAbsolute = resolveInside(sourceCollectionDir, relativeFile);
+  const optimizedRelative = toOptimizedImageRelativePath(relativeFile);
+  const targetAbsolute = resolveInside(targetCollectionDir, optimizedRelative);
+  await mkdir(path.dirname(targetAbsolute), { recursive: true });
+  await sharp(sourceAbsolute)
+    .rotate()
+    .resize(MOBILE_TEXTURE_MAX_SIZE, MOBILE_TEXTURE_MAX_SIZE, {
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: MOBILE_TEXTURE_QUALITY, effort: 4 })
+    .toFile(targetAbsolute);
+  return optimizedRelative;
+};
 
+const exportOptimizedAssetToPublicLibrary = async (asset: SceneAsset) => {
+  const targetCollectionDir = resolveInside(PUBLIC_ASSETS_LIBRARY_DIR, asset.collection);
   const sourceCollection = asset.sourceCollection ?? asset.collection;
   const sourceCollectionDir = resolveInside(ROOT_ASSETS_LIBRARY_DIR, sourceCollection);
   const sourceGltfPath = resolveInside(sourceCollectionDir, asset.file);
@@ -73,16 +100,36 @@ const ensureAssetInPublicLibrary = async (asset: SceneAsset) => {
     throw new Error(`No existe el source para ${asset.collection}/${asset.file}`);
   }
 
-  await copyKeepingRelativePath(sourceCollectionDir, targetCollectionDir, asset.file);
-
   const gltfContent = await readFile(sourceGltfPath, "utf-8");
-  const dependencyUris = extractDependencyUris(gltfContent);
+  const parsed = parseGltf(gltfContent);
   const gltfParent = path.posix.dirname(asset.file);
-  for (const uri of dependencyUris) {
+
+  for (const buffer of parsed.buffers ?? []) {
+    const uri = buffer.uri ?? "";
+    if (!uri || uri.startsWith("data:")) continue;
     const dependencyRelative = normalizeSafeRelativePath(path.posix.join(gltfParent, uri));
     if (!dependencyRelative) continue;
     await copyKeepingRelativePath(sourceCollectionDir, targetCollectionDir, dependencyRelative);
   }
+
+  for (const image of parsed.images ?? []) {
+    const uri = image.uri ?? "";
+    if (!uri || uri.startsWith("data:")) continue;
+    const dependencyRelative = normalizeSafeRelativePath(path.posix.join(gltfParent, uri));
+    if (!dependencyRelative) continue;
+
+    if (isOptimizableImageUri(uri)) {
+      const optimizedRelative = await optimizeImageIntoPublicLibrary(sourceCollectionDir, targetCollectionDir, dependencyRelative);
+      image.uri = path.posix.relative(gltfParent, optimizedRelative);
+      continue;
+    }
+
+    await copyKeepingRelativePath(sourceCollectionDir, targetCollectionDir, dependencyRelative);
+  }
+
+  const targetGltfPath = resolveInside(targetCollectionDir, asset.file);
+  await mkdir(path.dirname(targetGltfPath), { recursive: true });
+  await writeFile(targetGltfPath, JSON.stringify(parsed), "utf-8");
 };
 
 const listFilesRecursive = async (directory: string, base: string): Promise<string[]> => {
@@ -121,22 +168,40 @@ const removeEmptyDirectoriesRecursive = async (directory: string): Promise<void>
 const syncPublicLibraryWithLayout = async (assets: SceneAsset[]) => {
   await mkdir(PUBLIC_ASSETS_LIBRARY_DIR, { recursive: true });
 
-  for (const asset of assets) {
-    await ensureAssetInPublicLibrary(asset);
-  }
-
   const keepFiles = new Set<string>();
-  for (const asset of assets) {
-    keepFiles.add(`${asset.collection}/${asset.file}`);
-  }
 
-  for (const asset of assets) {
+  const uniqueAssets = Array.from(
+    new Map(
+      assets.map((asset) => {
+        const normalizedCollection = safeCollectionId(asset.sourceCollection ?? asset.collection);
+        return [
+          `${normalizedCollection}::${asset.file}`,
+          { ...asset, collection: normalizedCollection },
+        ];
+      }),
+    ).values(),
+  );
+
+  for (const asset of uniqueAssets) {
+    await exportOptimizedAssetToPublicLibrary(asset);
+    keepFiles.add(`${asset.collection}/${asset.file}`);
+
     const gltfPath = resolveInside(PUBLIC_ASSETS_LIBRARY_DIR, `${asset.collection}/${asset.file}`);
-    if (!(await pathExists(gltfPath))) continue;
     const gltfContent = await readFile(gltfPath, "utf-8");
-    const dependencyUris = extractDependencyUris(gltfContent);
+    const parsed = parseGltf(gltfContent);
     const gltfParent = path.posix.dirname(asset.file);
-    for (const uri of dependencyUris) {
+
+    for (const buffer of parsed.buffers ?? []) {
+      const uri = buffer.uri ?? "";
+      if (!uri || uri.startsWith("data:")) continue;
+      const dependencyRelative = normalizeSafeRelativePath(path.posix.join(gltfParent, uri));
+      if (!dependencyRelative) continue;
+      keepFiles.add(`${asset.collection}/${dependencyRelative}`);
+    }
+
+    for (const image of parsed.images ?? []) {
+      const uri = image.uri ?? "";
+      if (!uri || uri.startsWith("data:")) continue;
       const dependencyRelative = normalizeSafeRelativePath(path.posix.join(gltfParent, uri));
       if (!dependencyRelative) continue;
       keepFiles.add(`${asset.collection}/${dependencyRelative}`);
@@ -172,10 +237,17 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as unknown;
-    const layout = sanitizeSceneLayout(payload);
-    if (!layout) {
+    const sanitizedLayout = sanitizeSceneLayout(payload);
+    if (!sanitizedLayout) {
       return Response.json({ error: "Payload invalido." }, { status: 400 });
     }
+    const layout = {
+      ...sanitizedLayout,
+      assets: sanitizedLayout.assets.map((asset) => ({
+        ...asset,
+        collection: safeCollectionId(asset.sourceCollection ?? asset.collection),
+      })),
+    };
 
     await mkdir(SCENES_DIR, { recursive: true });
     const json = `${JSON.stringify(layout, null, 2)}\n`;

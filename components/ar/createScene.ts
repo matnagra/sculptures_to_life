@@ -1,16 +1,28 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { SceneAsset } from "@/lib/sceneLayout";
 
 type AnchoredScene = {
   root: THREE.Group;
   instances: Array<{ layoutIndex: number; object: THREE.Object3D }>;
+  syncLayout: (layout: SceneAsset[], options?: { skipTransformIndices?: Set<number> }) => Promise<void>;
   update: (deltaSeconds: number) => void;
   dispose: () => void;
 };
 
+type SceneQuality = "preview" | "mobile";
+type SceneAssetSource = "editor" | "public";
+export type SceneLoadProgress =
+  | { phase: "models"; loaded: number; total: number; unit: "models" }
+  | { phase: "instances"; loaded: number; total: number; unit: "instances" };
+
 type CreateAnchoredSceneOptions = {
   layout?: SceneAsset[];
+  quality?: SceneQuality;
+  showHelpers?: boolean;
+  assetSource?: SceneAssetSource;
+  onProgress?: (progress: SceneLoadProgress) => void;
 };
 
 const DEFAULT_SCALE = 0.2;
@@ -93,24 +105,42 @@ const DEFAULT_HOUSE_LAYOUT: SceneAsset[] = [
   { collection: "medieval-village", file: "Roof_Wooden_2x1.gltf", position: [0, 0, 0.62], rotationZ: 0 },
 ];
 
-const loadModel = async (loader: GLTFLoader, path: string) => {
-  return await loader.loadAsync(path);
-};
+const sharedLoader = new GLTFLoader();
+const modelTemplateCache = new Map<string, Promise<THREE.Object3D>>();
 
-const buildAssetUrl = (asset: SceneAsset): string => {
-  const encodedCollection = encodeURIComponent(asset.collection);
+const buildAssetUrl = (asset: SceneAsset, assetSource: SceneAssetSource): string => {
+  const collection = assetSource === "editor" ? asset.sourceCollection ?? asset.collection : asset.collection;
+  const encodedCollection = encodeURIComponent(collection);
   const encodedFilePath = asset.file
     .split("/")
     .map((part) => encodeURIComponent(part))
     .join("/");
+  if (assetSource === "editor") {
+    return `/api/editor/models/${encodedCollection}/${encodedFilePath}`;
+  }
   return `/assets/models/assets_library/${encodedCollection}/${encodedFilePath}`;
 };
 
-const prepareModel = (object: THREE.Object3D) => {
+const prepareModel = (object: THREE.Object3D, quality: SceneQuality = "preview") => {
   object.traverse((node) => {
     if (!(node instanceof THREE.Mesh)) return;
     node.castShadow = false;
     node.receiveShadow = false;
+    node.frustumCulled = true;
+    if (quality !== "mobile") return;
+
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((material) => {
+      if (!material) return;
+      material.side = THREE.FrontSide;
+      material.precision = "lowp";
+      if ("map" in material && material.map) {
+        material.map.anisotropy = 1;
+      }
+      if ("normalMap" in material && material.normalMap) {
+        material.normalMap.anisotropy = 1;
+      }
+    });
   });
 };
 
@@ -128,8 +158,58 @@ const removeGroundArtifacts = (object: THREE.Object3D) => {
   toRemove.forEach((node) => node.parent?.remove(node));
 };
 
+const setLayoutIndex = (object: THREE.Object3D, layoutIndex: number) => {
+  object.userData.layoutIndex = layoutIndex;
+  object.traverse((node) => {
+    node.userData.layoutIndex = layoutIndex;
+  });
+};
+
+const applyAssetTransform = (object: THREE.Object3D, asset: SceneAsset) => {
+  object.position.set(...toThreePosition(asset.position));
+  const [rx, ry, rz] = getLayoutRotation(asset);
+  object.rotation.order = LAYOUT_EULER_ORDER;
+  object.rotation.set(rx, ry, rz, LAYOUT_EULER_ORDER);
+  object.scale.set(...toThreeScale(getLayoutScale(asset)));
+};
+
+const loadModelTemplate = async (path: string) => {
+  let pending = modelTemplateCache.get(path);
+  if (!pending) {
+    pending = sharedLoader.loadAsync(path).then((gltf) => {
+      const template = gltf.scene;
+      removeGroundArtifacts(template);
+      prepareModel(template);
+      return template;
+    });
+    modelTemplateCache.set(path, pending);
+  }
+
+  try {
+    return await pending;
+  } catch (error) {
+    modelTemplateCache.delete(path);
+    throw error;
+  }
+};
+
+const createModelInstance = async (
+  asset: SceneAsset,
+  assetSource: SceneAssetSource,
+  quality: SceneQuality = "preview",
+) => {
+  const template = await loadModelTemplate(buildAssetUrl(asset, assetSource));
+  const instance = cloneSkeleton(template);
+  prepareModel(instance, quality);
+  return instance;
+};
+
 export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = {}): Promise<AnchoredScene> => {
   const layout = options.layout && options.layout.length > 0 ? options.layout : DEFAULT_HOUSE_LAYOUT;
+  const quality = options.quality ?? "preview";
+  const showHelpers = options.showHelpers ?? true;
+  const assetSource = options.assetSource ?? "public";
+  const reportProgress = options.onProgress ?? (() => {});
   const root = new THREE.Group();
   root.name = "sculpture-anchor-root";
   root.scale.setScalar(0.22);
@@ -140,100 +220,183 @@ export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = 
   dirLight.position.set(1, 2, 1);
   root.add(hemiLight, dirLight);
 
-  const loader = new GLTFLoader();
-
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.95, 1.05, 64),
-    new THREE.MeshStandardMaterial({ color: 0x58d6ff, metalness: 0.1, roughness: 0.6 }),
-  );
-  // Semantic XY plane.
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(...toThreePosition([0, 0, 0.01]));
-  root.add(ring);
-
-  const axesLength = 0.8;
-  const axesOrigin = new THREE.Vector3(...toThreePosition([0, 0, 0.02]));
-  const xAxis = new THREE.ArrowHelper(new THREE.Vector3(...toThreePosition([1, 0, 0])).normalize(), axesOrigin, axesLength, 0xff5555);
-  const yAxis = new THREE.ArrowHelper(new THREE.Vector3(...toThreePosition([0, 1, 0])).normalize(), axesOrigin, axesLength, 0x55ff55);
-  const zAxis = new THREE.ArrowHelper(new THREE.Vector3(...toThreePosition([0, 0, 1])).normalize(), axesOrigin, axesLength, 0x5599ff);
-  root.add(xAxis, yAxis, zAxis);
-
   const axisLabelResources: Array<{ texture: THREE.CanvasTexture; material: THREE.SpriteMaterial }> = [];
-  const xLabel = createAxisLabel("X", "#ff6666");
-  const yLabel = createAxisLabel("Y", "#66ff66");
-  const zLabel = createAxisLabel("Z", "#6699ff");
-  if (xLabel) {
-    xLabel.sprite.position.set(...toThreePosition([axesLength + 0.1, 0, 0.02]));
-    root.add(xLabel.sprite);
-    axisLabelResources.push({ texture: xLabel.texture, material: xLabel.material });
-  }
-  if (yLabel) {
-    yLabel.sprite.position.set(...toThreePosition([0, axesLength + 0.1, 0.02]));
-    root.add(yLabel.sprite);
-    axisLabelResources.push({ texture: yLabel.texture, material: yLabel.material });
-  }
-  if (zLabel) {
-    zLabel.sprite.position.set(...toThreePosition([0, 0, axesLength + 0.12]));
-    root.add(zLabel.sprite);
-    axisLabelResources.push({ texture: zLabel.texture, material: zLabel.material });
+  let ring: THREE.Mesh<THREE.RingGeometry, THREE.MeshStandardMaterial> | null = null;
+  if (showHelpers) {
+    ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.95, 1.05, 64),
+      new THREE.MeshStandardMaterial({ color: 0x58d6ff, metalness: 0.1, roughness: 0.6 }),
+    );
+    // Semantic XY plane.
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(...toThreePosition([0, 0, 0.01]));
+    root.add(ring);
+
+    const axesLength = 0.8;
+    const axesOrigin = new THREE.Vector3(...toThreePosition([0, 0, 0.02]));
+    const xAxis = new THREE.ArrowHelper(new THREE.Vector3(...toThreePosition([1, 0, 0])).normalize(), axesOrigin, axesLength, 0xff5555);
+    const yAxis = new THREE.ArrowHelper(new THREE.Vector3(...toThreePosition([0, 1, 0])).normalize(), axesOrigin, axesLength, 0x55ff55);
+    const zAxis = new THREE.ArrowHelper(new THREE.Vector3(...toThreePosition([0, 0, 1])).normalize(), axesOrigin, axesLength, 0x5599ff);
+    root.add(xAxis, yAxis, zAxis);
+
+    const xLabel = createAxisLabel("X", "#ff6666");
+    const yLabel = createAxisLabel("Y", "#66ff66");
+    const zLabel = createAxisLabel("Z", "#6699ff");
+    if (xLabel) {
+      xLabel.sprite.position.set(...toThreePosition([axesLength + 0.1, 0, 0.02]));
+      root.add(xLabel.sprite);
+      axisLabelResources.push({ texture: xLabel.texture, material: xLabel.material });
+    }
+    if (yLabel) {
+      yLabel.sprite.position.set(...toThreePosition([0, axesLength + 0.1, 0.02]));
+      root.add(yLabel.sprite);
+      axisLabelResources.push({ texture: yLabel.texture, material: yLabel.material });
+    }
+    if (zLabel) {
+      zLabel.sprite.position.set(...toThreePosition([0, 0, axesLength + 0.12]));
+      root.add(zLabel.sprite);
+      axisLabelResources.push({ texture: zLabel.texture, material: zLabel.material });
+    }
   }
 
-  const settledLoads = await Promise.allSettled(
-    layout.map((asset) => loadModel(loader, buildAssetUrl(asset))),
+  const fallback = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 0.2, 2.2),
+    new THREE.MeshStandardMaterial({ color: 0xb08a64 }),
   );
+  fallback.position.set(...toThreePosition([0, 0, 0.08]));
+  fallback.visible = false;
+  root.add(fallback);
 
-  let loadedCount = 0;
-  const instances: Array<{ layoutIndex: number; object: THREE.Object3D }> = [];
-  settledLoads.forEach((result, index) => {
-    const asset = layout[index];
-    if (result.status !== "fulfilled") {
-      console.warn(`[house] Asset no cargado: ${asset.collection}/${asset.file}`);
-      return;
+  const instances: Array<{ layoutIndex: number; object: THREE.Object3D; assetKey: string }> = [];
+  let syncVersion = 0;
+  let disposed = false;
+
+  const sortInstances = () => {
+    instances.sort((a, b) => a.layoutIndex - b.layoutIndex);
+  };
+
+  const removeInstanceAt = (instanceIndex: number) => {
+    const [removed] = instances.splice(instanceIndex, 1);
+    if (!removed) return;
+    root.remove(removed.object);
+  };
+
+  const syncLayout = async (
+    nextLayout: SceneAsset[],
+    syncOptions?: { skipTransformIndices?: Set<number> },
+  ) => {
+    const version = ++syncVersion;
+    const skipTransformIndices = syncOptions?.skipTransformIndices ?? new Set<number>();
+
+    for (let index = instances.length - 1; index >= 0; index -= 1) {
+      const instance = instances[index];
+      const asset = nextLayout[instance.layoutIndex];
+      const assetKey = asset ? buildAssetUrl(asset, assetSource) : null;
+      if (!asset || assetKey !== instance.assetKey) {
+        removeInstanceAt(index);
+      }
     }
 
-    const instance = result.value.scene;
-    removeGroundArtifacts(instance);
-    prepareModel(instance);
-    instance.position.set(...toThreePosition(asset.position));
-    const [rx, ry, rz] = getLayoutRotation(asset);
-    instance.rotation.order = LAYOUT_EULER_ORDER;
-    instance.rotation.set(rx, ry, rz, LAYOUT_EULER_ORDER);
-    instance.scale.set(...toThreeScale(getLayoutScale(asset)));
-    instance.userData.layoutIndex = index;
-    instance.traverse((node) => {
-      node.userData.layoutIndex = index;
-    });
-    root.add(instance);
-    instances.push({ layoutIndex: index, object: instance });
-    loadedCount += 1;
-  });
+    for (const instance of instances) {
+      const asset = nextLayout[instance.layoutIndex];
+      if (!asset || skipTransformIndices.has(instance.layoutIndex)) continue;
+      applyAssetTransform(instance.object, asset);
+      setLayoutIndex(instance.object, instance.layoutIndex);
+    }
 
-  if (loadedCount === 0) {
-    const fallback = new THREE.Mesh(
-      new THREE.BoxGeometry(2.2, 0.2, 2.2),
-      new THREE.MeshStandardMaterial({ color: 0xb08a64 }),
+    const existingIndices = new Set(instances.map((instance) => instance.layoutIndex));
+    const pendingAdds = nextLayout
+      .map((asset, index) => ({ asset, index, assetKey: buildAssetUrl(asset, assetSource) }))
+      .filter(({ index }) => !existingIndices.has(index));
+
+    const uniqueModelEntries = Array.from(
+      new Map(nextLayout.map((asset) => [buildAssetUrl(asset, assetSource), asset])).entries(),
+    ).map(([assetKey, asset]) => ({ assetKey, asset }));
+    reportProgress({ phase: "models", loaded: 0, total: uniqueModelEntries.length, unit: "models" });
+
+    let loadedModels = 0;
+    await Promise.allSettled(
+      uniqueModelEntries.map(async ({ assetKey }) => {
+        try {
+          await loadModelTemplate(assetKey);
+        } finally {
+          loadedModels += 1;
+          reportProgress({ phase: "models", loaded: loadedModels, total: uniqueModelEntries.length, unit: "models" });
+        }
+      }),
     );
-    fallback.position.set(...toThreePosition([0, 0, 0.08]));
-    root.add(fallback);
+
+    if (disposed || version !== syncVersion) return;
+
+    const totalInstances = nextLayout.length;
+    let loadedInstances = totalInstances - pendingAdds.length;
+    reportProgress({ phase: "instances", loaded: loadedInstances, total: totalInstances, unit: "instances" });
+
+    const settledLoads = await Promise.allSettled(
+      pendingAdds.map(async ({ asset, index, assetKey }) => {
+        try {
+          return {
+            index,
+            asset,
+            assetKey,
+            object: await createModelInstance(asset, assetSource, quality),
+          };
+        } finally {
+          loadedInstances += 1;
+          reportProgress({ phase: "instances", loaded: loadedInstances, total: totalInstances, unit: "instances" });
+        }
+      }),
+    );
+
+    if (disposed || version !== syncVersion) return;
+
+    settledLoads.forEach((result) => {
+      if (result.status !== "fulfilled") {
+        const failedAsset = pendingAdds[settledLoads.indexOf(result)]?.asset;
+        if (failedAsset) {
+          console.warn(`[house] Asset no cargado: ${failedAsset.collection}/${failedAsset.file}`);
+        }
+        return;
+      }
+
+      const { index, asset, assetKey, object } = result.value;
+      applyAssetTransform(object, asset);
+      setLayoutIndex(object, index);
+      root.add(object);
+      instances.push({ layoutIndex: index, object, assetKey });
+    });
+
+    sortInstances();
+    fallback.visible = instances.length === 0;
+  };
+
+  await syncLayout(layout);
+
+  if (instances.length === 0) {
+    fallback.visible = true;
   }
 
   let elapsed = 0;
 
   const update = (deltaSeconds: number) => {
     elapsed += deltaSeconds;
-    ring.scale.setScalar(1 + Math.sin(elapsed * 1.8) * 0.01);
+    ring?.scale.setScalar(1 + Math.sin(elapsed * 1.8) * 0.01);
   };
 
   const dispose = () => {
-    const ringGeometry = ring.geometry as THREE.RingGeometry;
-    const ringMaterial = ring.material as THREE.MeshStandardMaterial;
-    ringGeometry.dispose();
-    ringMaterial.dispose();
+    disposed = true;
+    instances.splice(0, instances.length).forEach(({ object }) => {
+      root.remove(object);
+    });
+    ring?.geometry.dispose();
+    ring?.material.dispose();
+    fallback.geometry.dispose();
+    (fallback.material as THREE.MeshStandardMaterial).dispose();
     axisLabelResources.forEach(({ texture, material }) => {
       texture.dispose();
       material.dispose();
     });
   };
 
-  return { root, instances, update, dispose };
+  return { root, instances, syncLayout, update, dispose };
 };
