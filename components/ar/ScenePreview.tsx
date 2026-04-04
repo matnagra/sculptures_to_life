@@ -4,7 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
-import { createAnchoredScene, fromThreePosition, fromThreeRotation, fromThreeScale } from "@/components/ar/createScene";
+import {
+  createAnchoredScene,
+  fromThreePosition,
+  fromThreeRotation,
+  fromThreeScale,
+  LAYOUT_EULER_ORDER,
+  toThreePosition,
+  toThreeScale,
+} from "@/components/ar/createScene";
 import type { SceneAsset } from "@/lib/sceneLayout";
 import styles from "@/components/ar/ScenePreview.module.css";
 
@@ -17,6 +25,17 @@ type ScenePreviewProps = {
   onSelectionChange: (selection: { indices: number[] }) => void;
   onAssetTransform: (index: number, asset: SceneAsset) => void;
   onAssetsTransform: (changes: Array<{ index: number; asset: SceneAsset }>, coalesceKey?: string) => void;
+  virtualTransform?: {
+    indices: number[];
+    position: [number, number, number];
+    rotation: [number, number, number];
+    scale3: [number, number, number];
+  } | null;
+  onVirtualTransform?: (transform: {
+    position: [number, number, number];
+    rotation: [number, number, number];
+    scale3: [number, number, number];
+  }) => void;
 };
 
 // Stable refs that live for the entire lifetime of the mounted component.
@@ -37,6 +56,8 @@ export default function ScenePreview({
   onSelectionChange,
   onAssetTransform,
   onAssetsTransform,
+  virtualTransform,
+  onVirtualTransform,
 }: ScenePreviewProps) {
   const normalizeIndices = (value: unknown): number[] => {
     if (!Array.isArray(value)) return [];
@@ -65,6 +86,8 @@ export default function ScenePreview({
   const onSelectionChangeRef = useRef(onSelectionChange);
   const onAssetTransformRef = useRef(onAssetTransform);
   const onAssetsTransformRef = useRef(onAssetsTransform);
+  const virtualTransformRef = useRef(virtualTransform);
+  const onVirtualTransformRef = useRef(onVirtualTransform);
 
   useEffect(() => { layoutRef.current = layout; }, [layout]);
   useEffect(() => { selectedAssetIndicesRef.current = normalizeIndices(selectedAssetIndices); }, [selectedAssetIndices]);
@@ -72,9 +95,17 @@ export default function ScenePreview({
   useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
   useEffect(() => { onAssetTransformRef.current = onAssetTransform; }, [onAssetTransform]);
   useEffect(() => { onAssetsTransformRef.current = onAssetsTransform; }, [onAssetsTransform]);
+  useEffect(() => { virtualTransformRef.current = virtualTransform; }, [virtualTransform]);
+  useEffect(() => { onVirtualTransformRef.current = onVirtualTransform; }, [onVirtualTransform]);
 
   const getStructuralKey = (assets: SceneAsset[]) =>
     assets.map((a) => `${a.collection}::${a.file}`).join("|");
+
+  const getVirtualSelectionKey = () => {
+    const nextVirtual = virtualTransformRef.current;
+    if (!nextVirtual) return "";
+    return getSelectionKey(nextVirtual.indices);
+  };
 
   // "ready" is real state so effects that depend on it re-run when it changes.
   const [ready, setReady] = useState(false);
@@ -120,10 +151,6 @@ export default function ScenePreview({
     const instances = getSelectedInstances(indices);
     if (instances.length < 2) return null;
 
-    const centroid = new THREE.Vector3();
-    instances.forEach((instance) => centroid.add(instance.object.position));
-    centroid.divideScalar(instances.length);
-
     let proxy = multiProxyRef.current;
     if (!proxy) {
       proxy = new THREE.Group();
@@ -131,15 +158,27 @@ export default function ScenePreview({
       anchoredRef.current.root.add(proxy);
       multiProxyRef.current = proxy;
     }
-    proxy.position.copy(centroid);
-    proxy.rotation.set(0, 0, 0);
-    proxy.scale.set(1, 1, 1);
+
+    const nextVirtual = virtualTransformRef.current;
+    if (nextVirtual && getSelectionKey(indices) === getSelectionKey(nextVirtual.indices)) {
+      proxy.position.set(...toThreePosition(nextVirtual.position));
+      proxy.rotation.order = LAYOUT_EULER_ORDER;
+      proxy.rotation.set(...nextVirtual.rotation, LAYOUT_EULER_ORDER);
+      proxy.scale.set(...toThreeScale(nextVirtual.scale3));
+    } else {
+      const centroid = new THREE.Vector3();
+      instances.forEach((instance) => centroid.add(instance.object.position));
+      centroid.divideScalar(instances.length);
+      proxy.position.copy(centroid);
+      proxy.rotation.set(0, 0, 0);
+      proxy.scale.set(1, 1, 1);
+    }
     proxy.updateMatrix();
     previousProxyMatrixRef.current.copy(proxy.matrix);
     return proxy;
   };
 
-  const applyDeltaFromProxy = (indices: number[]) => {
+  const applyDeltaFromProxy = (indices: number[], emitAssetChanges = true) => {
     const proxy = multiProxyRef.current;
     const anchored = anchoredRef.current;
     if (!proxy || !anchored) return;
@@ -171,7 +210,7 @@ export default function ScenePreview({
       });
     }
 
-    if (changes.length > 0) {
+    if (emitAssetChanges && changes.length > 0) {
       const coalesceKey = `group-transform:${indices.join(",")}`;
       onAssetsTransformRef.current(changes, coalesceKey);
     }
@@ -215,7 +254,7 @@ export default function ScenePreview({
         }
       });
       multiSelectionBoundsRef.current = bounds;
-      const boundsHelper = new THREE.Box3Helper(bounds, 0xfacc15);
+      const boundsHelper = new THREE.Box3Helper(bounds, new THREE.Color(0xfacc15));
       selectionBoxRef.current = boundsHelper;
       engine.scene.add(boundsHelper);
       return;
@@ -252,7 +291,7 @@ export default function ScenePreview({
         }
       });
       multiSelectionBoundsRef.current = bounds;
-      const boundsHelper = new THREE.Box3Helper(bounds, 0xfacc15);
+      const boundsHelper = new THREE.Box3Helper(bounds, new THREE.Color(0xfacc15));
       selectionBoxRef.current = boundsHelper;
       engine.scene.add(boundsHelper);
     }
@@ -317,7 +356,19 @@ export default function ScenePreview({
           const selected = selectedAssetIndicesRef.current;
           if (selected.length === 0) return;
           if (selected.length > 1) {
-            applyDeltaFromProxy(selected);
+            const virtualSelectionKey = getVirtualSelectionKey();
+            const selectionKey = getSelectionKey(selected);
+            if (virtualSelectionKey && virtualSelectionKey === selectionKey && multiProxyRef.current) {
+              applyDeltaFromProxy(selected, false);
+              const proxy = multiProxyRef.current;
+              onVirtualTransformRef.current?.({
+                position: fromThreePosition(proxy.position),
+                rotation: fromThreeRotation(proxy),
+                scale3: fromThreeScale(proxy),
+              });
+            } else {
+              applyDeltaFromProxy(selected, true);
+            }
             return;
           }
           const idx = selected[0];
@@ -338,10 +389,11 @@ export default function ScenePreview({
           });
         });
 
-        transformControls.addEventListener("dragging-changed", (event: { value: boolean }) => {
-          draggingTransform.value = event.value;
-          isTransformDraggingRef.current = event.value;
-          orbitControls.enabled = !event.value;
+        transformControls.addEventListener("dragging-changed", (event) => {
+          const dragging = Boolean((event as unknown as { value?: boolean }).value);
+          draggingTransform.value = dragging;
+          isTransformDraggingRef.current = dragging;
+          orbitControls.enabled = !dragging;
         });
 
         const ground = new THREE.Mesh(

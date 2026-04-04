@@ -276,6 +276,16 @@
   min-width: 0;
 }
 
+.instanceBadge {
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  border-radius: 999px;
+  background: rgba(30, 64, 175, 0.22);
+  color: #dbeafe;
+  font-size: 0.58rem;
+  line-height: 1;
+  padding: 0.18rem 0.42rem;
+}
+
 .sceneAssetLabel,
 .sceneAssetLabelActive {
   border: none;

@@ -29,7 +29,7 @@ const DEFAULT_SCALE = 0.2;
 
 // Convert semantic XYZ (X ancho, Y largo, Z vertical) to Three.js axes.
 // Three scene here uses X (width), Z (depth), Y (height).
-const toThreePosition = (position: [number, number, number]): [number, number, number] => {
+export const toThreePosition = (position: [number, number, number]): [number, number, number] => {
   const [x, y, z] = position;
   return [x, z, y];
 };
@@ -38,7 +38,7 @@ export const fromThreePosition = (position: THREE.Vector3): [number, number, num
   return [position.x, position.z, position.y];
 };
 
-const toThreeScale = (scale: [number, number, number]): [number, number, number] => {
+export const toThreeScale = (scale: [number, number, number]): [number, number, number] => {
   const [x, y, z] = scale;
   return [x, z, y];
 };
