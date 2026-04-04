@@ -64,6 +64,9 @@ const toOptimizedImageRelativePath = (relativeFile: string) => {
   return relativeFile.replace(/\.(png|jpe?g|webp)$/i, ".webp");
 };
 
+const isGltfAssetFile = (filePath: string) => filePath.endsWith(".gltf");
+const isGlbAssetFile = (filePath: string) => filePath.endsWith(".glb");
+
 const copyKeepingRelativePath = async (sourceCollectionDir: string, targetCollectionDir: string, relativeFile: string) => {
   const sourceAbsolute = resolveInside(sourceCollectionDir, relativeFile);
   const targetAbsolute = resolveInside(targetCollectionDir, relativeFile);
@@ -95,12 +98,17 @@ const exportOptimizedAssetToPublicLibrary = async (asset: SceneAsset) => {
   const targetCollectionDir = resolveInside(PUBLIC_ASSETS_LIBRARY_DIR, asset.collection);
   const sourceCollection = asset.sourceCollection ?? asset.collection;
   const sourceCollectionDir = resolveInside(ROOT_ASSETS_LIBRARY_DIR, sourceCollection);
-  const sourceGltfPath = resolveInside(sourceCollectionDir, asset.file);
-  if (!(await pathExists(sourceGltfPath))) {
+  const sourceAssetPath = resolveInside(sourceCollectionDir, asset.file);
+  if (!(await pathExists(sourceAssetPath))) {
     throw new Error(`No existe el source para ${asset.collection}/${asset.file}`);
   }
 
-  const gltfContent = await readFile(sourceGltfPath, "utf-8");
+  if (isGlbAssetFile(asset.file)) {
+    await copyKeepingRelativePath(sourceCollectionDir, targetCollectionDir, asset.file);
+    return;
+  }
+
+  const gltfContent = await readFile(sourceAssetPath, "utf-8");
   const parsed = parseGltf(gltfContent);
   const gltfParent = path.posix.dirname(asset.file);
 
@@ -185,6 +193,10 @@ const syncPublicLibraryWithLayout = async (assets: SceneAsset[]) => {
   for (const asset of uniqueAssets) {
     await exportOptimizedAssetToPublicLibrary(asset);
     keepFiles.add(`${asset.collection}/${asset.file}`);
+
+    if (!isGltfAssetFile(asset.file)) {
+      continue;
+    }
 
     const gltfPath = resolveInside(PUBLIC_ASSETS_LIBRARY_DIR, `${asset.collection}/${asset.file}`);
     const gltfContent = await readFile(gltfPath, "utf-8");

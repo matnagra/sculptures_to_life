@@ -99,9 +99,11 @@ const loadSavedLayout = async () => {
 
 export default function WebARScene() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const anchoredSceneRef = useRef<Awaited<ReturnType<typeof createAnchoredScene>> | null>(null);
   const [status, setStatus] = useState<ARStatus>("loading");
   const [targetFound, setTargetFound] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
+  const [occludersVisible, setOccludersVisible] = useState(false);
   const [loadProgress, setLoadProgress] = useState<SceneLoadProgress>({
     phase: "models",
     loaded: 0,
@@ -135,6 +137,7 @@ export default function WebARScene() {
       setStatus("loading");
       setTargetFound(false);
       setSceneReady(false);
+      setOccludersVisible(false);
       setLoadProgress({ phase: "models", loaded: 0, total: 0, unit: "models" });
       setErrorMessage(null);
 
@@ -203,6 +206,7 @@ export default function WebARScene() {
               return;
             }
             anchoredScene = nextScene;
+            anchoredSceneRef.current = nextScene;
             // Align content with the tracked image plane (instead of popping out perpendicular).
             anchoredScene.root.rotation.x = Math.PI / 2;
             // Target image is portrait-oriented; rotate 90deg on the anchor plane so X follows width.
@@ -224,6 +228,7 @@ export default function WebARScene() {
             anchor.group.remove(anchoredScene.root);
             anchoredScene.dispose();
             anchoredScene = null;
+            anchoredSceneRef.current = null;
           }
         };
       } catch (error) {
@@ -250,9 +255,14 @@ export default function WebARScene() {
       } catch {
         // no-op cleanup
       }
+      anchoredSceneRef.current = null;
       cleanupContainer(container);
     };
   }, [hasStarted, reloadToken]);
+
+  useEffect(() => {
+    anchoredSceneRef.current?.setOccludersVisible(occludersVisible);
+  }, [occludersVisible]);
 
   return (
     <section className={styles.wrapper}>
@@ -317,6 +327,16 @@ export default function WebARScene() {
         </p>
 
         {status === "error" && errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
+
+        {hasStarted && sceneReady ? (
+          <button
+            type="button"
+            className={styles.retry}
+            onClick={() => setOccludersVisible((prev) => !prev)}
+          >
+            {occludersVisible ? "Ocultar oclusores" : "Mostrar oclusores"}
+          </button>
+        ) : null}
 
         <button
           type="button"

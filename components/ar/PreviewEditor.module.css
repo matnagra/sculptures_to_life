@@ -286,6 +286,16 @@
   padding: 0.18rem 0.42rem;
 }
 
+.occluderBadge {
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  border-radius: 999px;
+  background: rgba(8, 145, 178, 0.18);
+  color: #cffafe;
+  font-size: 0.58rem;
+  line-height: 1;
+  padding: 0.18rem 0.42rem;
+}
+
 .sceneAssetLabel,
 .sceneAssetLabelActive {
   border: none;
@@ -423,6 +433,19 @@
   color: #cbd5e1;
   font-size: 0.76rem;
   line-height: 1.25;
+}
+
+.kindToggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.kindToggleButtons {
+  display: flex;
+  gap: 0.35rem;
 }
 
 .paramRows {

@@ -1,12 +1,13 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
-import type { SceneAsset } from "@/lib/sceneLayout";
+import { getSceneAssetKind, type SceneAsset } from "@/lib/sceneLayout";
 
 type AnchoredScene = {
   root: THREE.Group;
   instances: Array<{ layoutIndex: number; object: THREE.Object3D }>;
   syncLayout: (layout: SceneAsset[], options?: { skipTransformIndices?: Set<number> }) => Promise<void>;
+  setOccludersVisible: (visible: boolean) => void;
   update: (deltaSeconds: number) => void;
   dispose: () => void;
 };
@@ -121,6 +122,9 @@ const buildAssetUrl = (asset: SceneAsset, assetSource: SceneAssetSource): string
   return `/assets/models/assets_library/${encodedCollection}/${encodedFilePath}`;
 };
 
+const buildInstanceKey = (asset: SceneAsset, assetSource: SceneAssetSource): string =>
+  `${buildAssetUrl(asset, assetSource)}::${getSceneAssetKind(asset)}`;
+
 const prepareModel = (object: THREE.Object3D, quality: SceneQuality = "preview") => {
   object.traverse((node) => {
     if (!(node instanceof THREE.Mesh)) return;
@@ -142,6 +146,95 @@ const prepareModel = (object: THREE.Object3D, quality: SceneQuality = "preview")
       }
     });
   });
+};
+
+const createOccluderMaterial = (visible: boolean) => {
+  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  material.depthTest = true;
+  material.toneMapped = false;
+
+  if (visible) {
+    material.color.setHex(0x38bdf8);
+    material.transparent = true;
+    material.opacity = 0.28;
+    material.colorWrite = true;
+    material.depthWrite = false;
+    material.blending = THREE.NormalBlending;
+    material.name = "occluder-preview";
+    return material;
+  }
+
+  material.transparent = false;
+  material.opacity = 1;
+  material.colorWrite = false;
+  material.depthWrite = true;
+  material.blending = THREE.NoBlending;
+  material.name = "occluder-depth";
+  return material;
+};
+
+const applyOccluderMaterial = (object: THREE.Object3D, visible: boolean) => {
+  object.traverse((node) => {
+    if (!(node instanceof THREE.Mesh)) return;
+    node.material = createOccluderMaterial(visible);
+    node.material.needsUpdate = true;
+    node.castShadow = false;
+    node.receiveShadow = false;
+    node.renderOrder = visible ? 10 : -10;
+  });
+};
+
+const getOccluderPreviewObject = (object: THREE.Object3D): THREE.Object3D | null =>
+  object.userData.occluderPreview instanceof THREE.Object3D ? object.userData.occluderPreview : null;
+
+const applyOccluderVisibility = (object: THREE.Object3D, quality: SceneQuality, visible: boolean) => {
+  if (quality !== "mobile") {
+    applyOccluderMaterial(object, true);
+    return;
+  }
+
+  const previewObject = getOccluderPreviewObject(object);
+  if (previewObject) {
+    previewObject.visible = visible;
+  } else {
+    applyOccluderMaterial(object, visible);
+  }
+};
+
+const prepareOccluder = (object: THREE.Object3D, quality: SceneQuality) => {
+  if (quality !== "mobile") {
+    applyOccluderMaterial(object, true);
+    return;
+  }
+
+  applyOccluderMaterial(object, false);
+};
+
+const createOccluderInstance = async (
+  template: THREE.Object3D,
+  quality: SceneQuality,
+) => {
+  if (quality !== "mobile") {
+    const instance = cloneSkeleton(template);
+    prepareModel(instance, quality);
+    prepareOccluder(instance, quality);
+    return instance;
+  }
+
+  const depthInstance = cloneSkeleton(template);
+  prepareModel(depthInstance, quality);
+  applyOccluderMaterial(depthInstance, false);
+
+  const previewInstance = cloneSkeleton(template);
+  prepareModel(previewInstance, quality);
+  applyOccluderMaterial(previewInstance, true);
+  previewInstance.visible = false;
+
+  const group = new THREE.Group();
+  group.name = "occluder-group";
+  group.userData.occluderPreview = previewInstance;
+  group.add(depthInstance, previewInstance);
+  return group;
 };
 
 const removeGroundArtifacts = (object: THREE.Object3D) => {
@@ -199,6 +292,9 @@ const createModelInstance = async (
   quality: SceneQuality = "preview",
 ) => {
   const template = await loadModelTemplate(buildAssetUrl(asset, assetSource));
+  if (getSceneAssetKind(asset) === "occluder") {
+    return createOccluderInstance(template, quality);
+  }
   const instance = cloneSkeleton(template);
   prepareModel(instance, quality);
   return instance;
@@ -270,6 +366,8 @@ export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = 
   const instances: Array<{ layoutIndex: number; object: THREE.Object3D; assetKey: string }> = [];
   let syncVersion = 0;
   let disposed = false;
+  let occludersVisible = false;
+  let currentLayout = layout;
 
   const sortInstances = () => {
     instances.sort((a, b) => a.layoutIndex - b.layoutIndex);
@@ -285,13 +383,14 @@ export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = 
     nextLayout: SceneAsset[],
     syncOptions?: { skipTransformIndices?: Set<number> },
   ) => {
+    currentLayout = nextLayout;
     const version = ++syncVersion;
     const skipTransformIndices = syncOptions?.skipTransformIndices ?? new Set<number>();
 
     for (let index = instances.length - 1; index >= 0; index -= 1) {
       const instance = instances[index];
       const asset = nextLayout[instance.layoutIndex];
-      const assetKey = asset ? buildAssetUrl(asset, assetSource) : null;
+      const assetKey = asset ? buildInstanceKey(asset, assetSource) : null;
       if (!asset || assetKey !== instance.assetKey) {
         removeInstanceAt(index);
       }
@@ -306,7 +405,7 @@ export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = 
 
     const existingIndices = new Set(instances.map((instance) => instance.layoutIndex));
     const pendingAdds = nextLayout
-      .map((asset, index) => ({ asset, index, assetKey: buildAssetUrl(asset, assetSource) }))
+      .map((asset, index) => ({ asset, index, assetKey: buildInstanceKey(asset, assetSource) }))
       .filter(({ index }) => !existingIndices.has(index));
 
     const uniqueModelEntries = Array.from(
@@ -361,6 +460,9 @@ export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = 
 
       const { index, asset, assetKey, object } = result.value;
       applyAssetTransform(object, asset);
+      if (getSceneAssetKind(asset) === "occluder") {
+        applyOccluderVisibility(object, quality, occludersVisible);
+      }
       setLayoutIndex(object, index);
       root.add(object);
       instances.push({ layoutIndex: index, object, assetKey });
@@ -383,6 +485,15 @@ export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = 
     ring?.scale.setScalar(1 + Math.sin(elapsed * 1.8) * 0.01);
   };
 
+  const setOccludersVisible = (visible: boolean) => {
+    occludersVisible = visible;
+    instances.forEach((instance) => {
+      const asset = currentLayout[instance.layoutIndex];
+      if (!asset || getSceneAssetKind(asset) !== "occluder") return;
+      applyOccluderVisibility(instance.object, quality, visible);
+    });
+  };
+
   const dispose = () => {
     disposed = true;
     instances.splice(0, instances.length).forEach(({ object }) => {
@@ -398,5 +509,5 @@ export const createAnchoredScene = async (options: CreateAnchoredSceneOptions = 
     });
   };
 
-  return { root, instances, syncLayout, update, dispose };
+  return { root, instances, syncLayout, setOccludersVisible, update, dispose };
 };

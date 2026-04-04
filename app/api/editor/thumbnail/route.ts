@@ -62,13 +62,13 @@ export async function GET(request: Request) {
   const normalizedAsset = normalizeAssetPath(rawAsset);
   const asset = clampText(normalizedAsset ?? "asset.gltf", 120);
   const base = asset.split("/").pop() ?? asset;
-  const title = clampText(base.replace(/\.gltf$/i, ""), 20);
+  const title = clampText(base.replace(/\.gl(?:tf|b)$/i, ""), 20);
   const hash = hashString(`${collection}:${asset}`);
   const hue = hash % 360;
 
   if (normalizedAsset) {
     const collectionId = isSafeCollectionId(collectionIdParam) ? collectionIdParam : safeCollectionId(collection);
-    const baseNoExt = normalizedAsset.replace(/\.gltf$/i, "");
+    const baseNoExt = normalizedAsset.replace(/\.gl(?:tf|b)$/i, "");
     const candidates = [".webp", ".png", ".jpg", ".jpeg", ".svg"];
     for (const ext of candidates) {
       const relativeThumb = `${baseNoExt}${ext}`;

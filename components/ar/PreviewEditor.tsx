@@ -7,6 +7,7 @@ import {
   cloneCollectionInstance,
   cloneSceneAsset,
   cloneSceneEditorData,
+  getSceneAssetKind,
   getCollectionInstanceMatrixFromWorldAsset,
   normalizeSceneEditorData,
   resolveSceneEditorData,
@@ -15,6 +16,7 @@ import {
   type OwnCollectionInstance,
   type ResolvedSceneAsset,
   type SceneAsset,
+  type SceneAssetKind,
   type SceneEditorData,
   type SceneGroup,
   type SceneLayout,
@@ -121,6 +123,8 @@ const buildEditorSignature = (editor: SceneEditorData) => JSON.stringify(editor)
 
 const buildThumbnailUrl = (collectionId: string, collectionName: string, assetPath: string) =>
   `/api/editor/thumbnail?collectionId=${encodeURIComponent(collectionId)}&collection=${encodeURIComponent(collectionName)}&asset=${encodeURIComponent(assetPath)}`;
+
+const isOccluderCollection = (collection: Pick<AssetCollection, "name">) => /occluder/i.test(collection.name);
 
 const asResolvedAsset = (asset: EditorSceneAsset): ResolvedSceneAsset => ({
   ...cloneAsset(asset),
@@ -344,7 +348,7 @@ export default function PreviewEditor() {
     setHoverPreview(null);
   };
 
-  const addAsset = async (collection: AssetCollection, assetPath: string) => {
+  const addAsset = async (collection: AssetCollection, assetPath: string, kind: SceneAssetKind = "model") => {
     const actionKey = `${collection.source}:${collection.name}:${assetPath}`;
     setImportingAssetKey(actionKey);
     setError(null);
@@ -372,6 +376,7 @@ export default function PreviewEditor() {
         id: makeEntityId("asset", occupied),
         collection: imported.collection,
         file: imported.file,
+        kind: kind === "occluder" ? "occluder" : undefined,
         sourceCollection: imported.sourceCollection,
         position: spawnPositionForIndex(currentAssets.length),
         rotation: [0, 0, 0],
@@ -1117,6 +1122,7 @@ export default function PreviewEditor() {
   }, [editingCollection, sceneInstances, selectedTarget]);
 
   const selectedTransformNode = selectedEditableAsset ?? selectedInstance;
+  const selectedAssetKind = selectedEditableAsset ? getSceneAssetKind(selectedEditableAsset) : null;
   const selectedRotation = selectedTransformNode ? getNodeRotation(selectedTransformNode) : [0, 0, 0];
   const selectedRotationDegrees = selectedRotation.map((value) => roundDegrees(radiansToDegrees(value))) as [number, number, number];
   const selectedScale = selectedTransformNode ? getNodeScale(selectedTransformNode) : null;
@@ -1323,6 +1329,22 @@ export default function PreviewEditor() {
     );
   };
 
+  const updateSelectedAssetKind = (kind: SceneAssetKind) => {
+    if (!selectedEditableAsset) return;
+    updateAssetsInScope(
+      [
+        {
+          assetId: selectedEditableAsset.id,
+          asset: {
+            ...cloneAsset(selectedEditableAsset),
+            kind: kind === "occluder" ? "occluder" : undefined,
+          },
+        },
+      ],
+      `asset-kind:${selectedEditableAsset.id}`,
+    );
+  };
+
   const hasAssets = useMemo(() => collections.some((collection) => collection.assets.length > 0), [collections]);
   const orderedCollections = useMemo(() => [...collections].sort((a, b) => a.name.localeCompare(b.name)), [collections]);
   const normalizedAssetSearch = assetSearch.trim().toLowerCase();
@@ -1357,6 +1379,7 @@ export default function PreviewEditor() {
 
   const renderAssetCard = (asset: EditorSceneAsset) => {
     const thumbCollection = asset.sourceCollection ?? asset.collection;
+    const assetKind = getSceneAssetKind(asset);
     return (
       <div
         key={asset.id}
@@ -1392,6 +1415,7 @@ export default function PreviewEditor() {
         >
           {asset.file.replace(/^.*\//, "")}
         </button>
+        {assetKind === "occluder" ? <div className={styles.occluderBadge}>oclusor</div> : null}
         <select className={styles.groupSelect} value={asset.groupId ?? ""} onChange={(event) => assignAssetToGroup(asset.id, event.target.value)}>
           <option value="">Sin grupo</option>
           {groupOptions.map((option) => (
@@ -1561,28 +1585,33 @@ export default function PreviewEditor() {
                   </button>
                   {!isCollapsed ? (
                     <div className={styles.assetList}>
-                      {collection.assets.map((assetPath) => (
-                        <button
-                          key={`${collection.name}:${assetPath}`}
-                          type="button"
-                          className={styles.assetButton}
-                          onClick={() => void addAsset(collection, assetPath)}
-                          onMouseEnter={(event) => scheduleHoverPreview(buildThumbnailUrl(collection.thumbnailCollectionId, collection.name, assetPath), assetPath.replace(/^.*\//, ""), event)}
-                          onMouseLeave={clearHoverPreview}
-                          disabled={loading || saving || importingAssetKey !== null}
-                        >
-                          <Image
-                            className={styles.assetThumb}
-                            alt={assetPath}
-                            loading="lazy"
-                            width={44}
-                            height={44}
-                            unoptimized
-                            src={buildThumbnailUrl(collection.thumbnailCollectionId, collection.name, assetPath)}
-                          />
-                          <span className={styles.assetLabel}>{assetPath.replace(/^.*\//, "")}</span>
-                        </button>
-                      ))}
+                      {collection.assets.map((assetPath) => {
+                        const occluderAsset = isOccluderCollection(collection);
+                        return (
+                          <button
+                            key={`${collection.name}:${assetPath}`}
+                            type="button"
+                            className={styles.assetButton}
+                            onClick={() => void addAsset(collection, assetPath, occluderAsset ? "occluder" : "model")}
+                            onMouseEnter={(event) => scheduleHoverPreview(buildThumbnailUrl(collection.thumbnailCollectionId, collection.name, assetPath), assetPath.replace(/^.*\//, ""), event)}
+                            onMouseLeave={clearHoverPreview}
+                            disabled={loading || saving || importingAssetKey !== null}
+                            title={occluderAsset ? "Agregar como oclusor" : "Agregar a la escena"}
+                          >
+                            <Image
+                              className={styles.assetThumb}
+                              alt={assetPath}
+                              loading="lazy"
+                              width={44}
+                              height={44}
+                              unoptimized
+                              src={buildThumbnailUrl(collection.thumbnailCollectionId, collection.name, assetPath)}
+                            />
+                            <span className={styles.assetLabel}>{assetPath.replace(/^.*\//, "")}</span>
+                            {occluderAsset ? <span className={styles.occluderBadge}>oclusor</span> : null}
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : null}
                 </div>
@@ -1697,11 +1726,32 @@ export default function PreviewEditor() {
           </div>
         </div>
 
-        {transformMode !== "observe" && selectedTransformNode ? (
+        {selectedTransformNode ? (
           <div className={styles.previewBottomPanel}>
             <p className={styles.previewBottomTitle}>
               {selectedEditableAsset ? selectedEditableAsset.file.replace(/^.*\//, "") : selectedInstance?.name?.trim() || "OwnCollection"}
             </p>
+            {selectedEditableAsset ? (
+              <div className={styles.kindToggleRow}>
+                <span className={styles.paramLabel}>Tipo</span>
+                <div className={styles.kindToggleButtons}>
+                  <button
+                    type="button"
+                    className={selectedAssetKind === "model" ? styles.transformButtonActive : styles.transformButton}
+                    onClick={() => updateSelectedAssetKind("model")}
+                  >
+                    Visible
+                  </button>
+                  <button
+                    type="button"
+                    className={selectedAssetKind === "occluder" ? styles.transformButtonActive : styles.transformButton}
+                    onClick={() => updateSelectedAssetKind("occluder")}
+                  >
+                    Oclusor
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {transformMode === "translate" ? (
               <div className={styles.paramRows}>
                 {[0, 1, 2].map((axis) => (
@@ -1735,7 +1785,17 @@ export default function PreviewEditor() {
                 ))}
               </div>
             ) : null}
-            <p className={styles.previewBottomValues}>Valores en unidades de escena (rotacion en grados).</p>
+            {transformMode !== "observe" ? (
+              <p className={styles.previewBottomValues}>Valores en unidades de escena (rotacion en grados).</p>
+            ) : (
+              <p className={styles.previewBottomValues}>
+                {selectedEditableAsset
+                  ? selectedAssetKind === "occluder"
+                    ? "Este asset se guarda como oclusor: visible en el preview, invisible en AR real."
+                    : "Este asset se renderiza normalmente en el preview y en AR real."
+                  : "Selecciona mover, rotar o escalar para editar esta instancia."}
+              </p>
+            )}
           </div>
         ) : null}
 
@@ -1744,6 +1804,7 @@ export default function PreviewEditor() {
             layout={previewAssets.map((asset) => ({
               collection: asset.collection,
               file: asset.file,
+              kind: asset.kind,
               sourceCollection: asset.sourceCollection,
               position: asset.position,
               rotation: asset.rotation,

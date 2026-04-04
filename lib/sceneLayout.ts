@@ -5,6 +5,7 @@ export type SceneAsset = {
   id?: string;
   collection: string;
   file: string;
+  kind?: "model" | "occluder";
   sourceCollection?: string;
   groupId?: string;
   position: [number, number, number];
@@ -68,6 +69,8 @@ export type SceneLayout = {
   editor?: SceneEditorData;
 };
 
+export type SceneAssetKind = NonNullable<SceneAsset["kind"]>;
+
 export const LAYOUT_EULER_ORDER: THREE.EulerOrder = "YXZ";
 
 const MAX_ASSETS = 1000;
@@ -106,6 +109,19 @@ export const cloneSceneAsset = <T extends SceneAsset>(asset: T): T => ({
   scale: asset.scale3 ? undefined : asset.scale,
   scale3: asset.scale3 ? [...asset.scale3] as [number, number, number] : undefined,
 });
+
+const inferOccluderFromCollection = (asset: Pick<SceneAsset, "collection" | "sourceCollection">) => {
+  const collection = asset.collection.toLowerCase();
+  const sourceCollection = asset.sourceCollection?.toLowerCase() ?? "";
+  return collection === "occluders" || sourceCollection === "occluders" || collection.includes("occluder") || sourceCollection.includes("occluder");
+};
+
+export const getSceneAssetKind = (
+  asset: Pick<SceneAsset, "kind" | "collection" | "sourceCollection">,
+): SceneAssetKind => {
+  if (asset.kind) return asset.kind;
+  return inferOccluderFromCollection(asset) ? "occluder" : "model";
+};
 
 export const cloneSceneGroup = (group: SceneGroup): SceneGroup => ({ ...group });
 
@@ -215,10 +231,17 @@ const isValidAsset = (value: unknown, options?: { requireId?: boolean }): value 
 
   if (options?.requireId && (typeof asset.id !== "string" || !isSafeEntityId(asset.id))) return false;
   if (asset.id !== undefined && (typeof asset.id !== "string" || !isSafeEntityId(asset.id))) return false;
+  if (asset.kind !== undefined && asset.kind !== "model" && asset.kind !== "occluder") return false;
   if (typeof asset.collection !== "string" || asset.collection.length === 0 || asset.collection.length > MAX_COLLECTION_LENGTH || !isSafeSegment(asset.collection)) {
     return false;
   }
-  if (typeof asset.file !== "string" || asset.file.length === 0 || asset.file.length > MAX_FILE_LENGTH || !asset.file.endsWith(".gltf") || !isSafeRelativePath(asset.file)) {
+  if (
+    typeof asset.file !== "string" ||
+    asset.file.length === 0 ||
+    asset.file.length > MAX_FILE_LENGTH ||
+    (!asset.file.endsWith(".gltf") && !asset.file.endsWith(".glb")) ||
+    !isSafeRelativePath(asset.file)
+  ) {
     return false;
   }
   if (asset.sourceCollection !== undefined && (typeof asset.sourceCollection !== "string" || !isSafeCollectionName(asset.sourceCollection))) return false;

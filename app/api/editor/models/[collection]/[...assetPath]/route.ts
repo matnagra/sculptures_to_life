@@ -20,6 +20,8 @@ const contentTypeFor = (assetPath: string) => {
   switch (ext) {
     case ".gltf":
       return "model/gltf+json; charset=utf-8";
+    case ".glb":
+      return "model/gltf-binary";
     case ".bin":
       return "application/octet-stream";
     case ".png":

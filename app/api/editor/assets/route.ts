@@ -16,15 +16,17 @@ const ROOT_ASSETS_LIBRARY_DIR = path.join(process.cwd(), "assets_library");
 
 const toPosixPath = (value: string) => value.split(path.sep).join("/");
 
-const listGltfFilesRecursive = async (directory: string, baseDirectory: string): Promise<string[]> => {
+const isSupportedModelFile = (fileName: string) => fileName.endsWith(".gltf") || fileName.endsWith(".glb");
+
+const listModelFilesRecursive = async (directory: string, baseDirectory: string): Promise<string[]> => {
   const entries = await readdir(directory, { withFileTypes: true });
   const nested = await Promise.all(
     entries.map(async (entry) => {
       const absolutePath = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        return await listGltfFilesRecursive(absolutePath, baseDirectory);
+        return await listModelFilesRecursive(absolutePath, baseDirectory);
       }
-      if (entry.isFile() && entry.name.endsWith(".gltf")) {
+      if (entry.isFile() && isSupportedModelFile(entry.name)) {
         const relative = path.relative(baseDirectory, absolutePath);
         return [toPosixPath(relative)];
       }
@@ -56,7 +58,7 @@ const readCollections = async (
     const collections = await Promise.all(
       collectionDirs.map(async (directory): Promise<CollectionResponse> => {
         const collectionPath = path.join(basePath, directory.name);
-        const assets = await listGltfFilesRecursive(collectionPath, collectionPath);
+        const assets = await listModelFilesRecursive(collectionPath, collectionPath);
         return {
           source,
           id: source === "public" ? directory.name : `${idPrefix}${safeCollectionId(directory.name)}`,

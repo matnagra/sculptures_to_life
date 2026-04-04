@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     if (!source || (source !== "public" && source !== "root")) {
       return Response.json({ error: "Source invalido." }, { status: 400 });
     }
-    if (!collectionName || !assetPath || !assetPath.endsWith(".gltf")) {
+    if (!collectionName || !assetPath || (!assetPath.endsWith(".gltf") && !assetPath.endsWith(".glb"))) {
       return Response.json({ error: "Payload invalido." }, { status: 400 });
     }
 
