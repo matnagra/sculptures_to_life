@@ -30,6 +30,12 @@ type MindARWindow = Window & {
         uiLoading?: boolean;
         uiScanning?: boolean;
         uiError?: boolean;
+        filterMinCF?: number;
+        filterBeta?: number;
+        warmupTolerance?: number;
+        missTolerance?: number;
+        maxTrack?: number;
+        environmentDeviceId?: string;
       }) => MindARThreeInstance;
     };
   };
@@ -38,6 +44,15 @@ type MindARWindow = Window & {
 const MINDAR_SCRIPT_ID = "mindar-image-three-script";
 const MINDAR_SCRIPT_URL = "/vendor/mindar-image-three.prod.js";
 const MINDAR_IMPORTMAP_ID = "mindar-importmap";
+const MINDAR_TUNING = {
+  // Balanced profile: smoother than defaults, but responsive on camera moves.
+  filterMinCF: 0.001,
+  filterBeta: 8,
+  // Keep detection stable without feeling sluggish.
+  warmupTolerance: 4,
+  missTolerance: 4,
+  maxTrack: 1,
+} as const;
 
 const ensureImportMap = (): void => {
   if (document.getElementById(MINDAR_IMPORTMAP_ID)) return;
@@ -85,6 +100,25 @@ const cleanupContainer = (container: HTMLElement | null) => {
   if (!container) return;
   while (container.firstChild) {
     container.removeChild(container.firstChild);
+  }
+};
+
+/**
+ * Picks the wide-angle back camera by label so iOS doesn't auto-switch lenses.
+ * Falls back to undefined (MindAR will use facingMode:"environment" instead).
+ */
+const resolveBackCameraId = async (): Promise<string | undefined> => {
+  try {
+    if (!navigator.mediaDevices?.enumerateDevices) return undefined;
+    // A throwaway stream is required on iOS before labels are exposed.
+    const probe = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    probe.getTracks().forEach((t) => t.stop());
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const backCameras = devices.filter((d) => d.kind === "videoinput" && d.label.toLowerCase().includes("back"));
+    const wide = backCameras.find((d) => d.label.toLowerCase().includes("wide")) ?? backCameras[0];
+    return wide?.deviceId;
+  } catch {
+    return undefined;
   }
 };
 
@@ -142,7 +176,11 @@ export default function WebARScene() {
       setErrorMessage(null);
 
       try {
-        const [, layout] = await Promise.all([loadMindARScript(), loadSavedLayout()]);
+        const [, layout, environmentDeviceId] = await Promise.all([
+          loadMindARScript(),
+          loadSavedLayout(),
+          resolveBackCameraId(),
+        ]);
         const MindARThree = (window as MindARWindow).MINDAR?.IMAGE?.MindARThree;
         if (!MindARThree) {
           throw new Error("MindAR global is unavailable");
@@ -154,20 +192,40 @@ export default function WebARScene() {
           uiLoading: false,
           uiScanning: false,
           uiError: false,
+          ...(environmentDeviceId ? { environmentDeviceId } : {}),
+          ...MINDAR_TUNING,
         });
 
         const { renderer, scene, camera } = mindar;
         renderer.setClearColor(0x000000, 0);
         renderer.outputEncoding = THREE.sRGBEncoding;
-        renderer.setPixelRatio(1);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
         const anchor = mindar.addAnchor(0);
         let anchoredScene: Awaited<ReturnType<typeof createAnchoredScene>> | null = null;
 
+        // Smoothed sibling group in the scene. Each frame we decompose the raw
+        // anchor matrix and lerp position/rotation fast but scale slow, which
+        // suppresses the constant subtle zoom-in/out without adding noticeable lag.
+        const smoothedGroup = new THREE.Group();
+        scene.add(smoothedGroup);
+        smoothedGroup.visible = false;
+
+        const _rawPos = new THREE.Vector3();
+        const _rawQuat = new THREE.Quaternion();
+        const _rawScale = new THREE.Vector3();
+        const _sPos = new THREE.Vector3();
+        const _sQuat = new THREE.Quaternion();
+        const _sScale = new THREE.Vector3(1, 1, 1);
+        let poseInitialized = false;
+
         anchor.onTargetFound = () => {
+          smoothedGroup.visible = true;
           setTargetFound(true);
         };
         anchor.onTargetLost = () => {
+          smoothedGroup.visible = false;
+          poseInitialized = false;
           setTargetFound(false);
         };
 
@@ -186,6 +244,26 @@ export default function WebARScene() {
         setStatus("running");
         renderer.setAnimationLoop(() => {
           const delta = clock.getDelta();
+          if (smoothedGroup.visible) {
+            anchor.group.matrix.decompose(_rawPos, _rawQuat, _rawScale);
+            if (!poseInitialized) {
+              _sPos.copy(_rawPos);
+              _sQuat.copy(_rawQuat);
+              _sScale.copy(_rawScale);
+              poseInitialized = true;
+            } else {
+              // Fast alpha for position/rotation keeps it responsive.
+              const poseAlpha = 1 - Math.exp(-12 * delta);
+              // Slow alpha for scale suppresses zoom-in/out jitter.
+              const scaleAlpha = 1 - Math.exp(-3 * delta);
+              _sPos.lerp(_rawPos, poseAlpha);
+              _sQuat.slerp(_rawQuat, poseAlpha);
+              _sScale.lerp(_rawScale, scaleAlpha);
+            }
+            smoothedGroup.position.copy(_sPos);
+            smoothedGroup.quaternion.copy(_sQuat);
+            smoothedGroup.scale.copy(_sScale);
+          }
           anchoredScene?.update(delta);
           renderer.render(scene, camera);
         });
@@ -212,7 +290,7 @@ export default function WebARScene() {
             // Target image is portrait-oriented; rotate 90deg on the anchor plane so X follows width.
             anchoredScene.root.rotation.y = Math.PI / 2;
             anchoredScene.root.position.z = 0.001;
-            anchor.group.add(anchoredScene.root);
+            smoothedGroup.add(anchoredScene.root);
             setLoadProgress({ phase: "instances", loaded: layout.length, total: layout.length, unit: "instances" });
             setSceneReady(true);
           })
@@ -225,11 +303,12 @@ export default function WebARScene() {
           renderer.setAnimationLoop(null);
           setSceneReady(false);
           if (anchoredScene) {
-            anchor.group.remove(anchoredScene.root);
+            smoothedGroup.remove(anchoredScene.root);
             anchoredScene.dispose();
             anchoredScene = null;
             anchoredSceneRef.current = null;
           }
+          scene.remove(smoothedGroup);
         };
       } catch (error) {
         console.error("Error starting WebAR scene", error);
